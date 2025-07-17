@@ -10,18 +10,58 @@
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     body { font-family: 'Inter', sans-serif; }
     @media print {
-      body { background-color: white !important; color: black !important; }
-      header, form, .print\\:hidden { display: none !important; }
-      main, .container { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
-      .summary-print-container, .bg-gray-900 { background-color: transparent !important; box-shadow: none !important; ring-width: 0 !important; padding: 0 !important; margin: 1rem 0 !important; }
-      .overflow-x-auto { overflow-x: visible !important; }
-      table { width: 100%; font-size: 10pt; border-collapse: collapse; }
-      thead { display: table-header-group; }
-      th, td { border: 1px solid #ccc !important; padding: 4px; color: black !important; background-color: white !important; }
-      th { background-color: #f2f2f2 !important; }
-      tr { page-break-inside: avoid; }
-      .text-yellow-400, .text-yellow-500, .text-white { color: black !important; }
-      .bg-gray-800, .border-gray-800 { background: transparent !important; border-color: #ccc !important; }
+      /* Simplified print styles for compact, text-only */
+      body, main, .container {
+        background: white !important;
+        color: black !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+        font-family: serif !important;
+        font-size: 12pt !important;
+      }
+      header, form, button, .print\\:hidden, .summary-print-container > div > button {
+        display: none !important;
+      }
+      .summary-print-container {
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 0 1rem 0 !important;
+        background: transparent !important;
+        border: none !important;
+      }
+      table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 10pt !important;
+        color: black !important;
+      }
+      thead, tbody, tr, th, td {
+        border: 1px solid black !important;
+        padding: 2px 4px !important;
+        background: transparent !important;
+      }
+      th {
+        font-weight: bold !important;
+        background: #eee !important;
+      }
+      tr {
+        page-break-inside: avoid;
+      }
+      div, p, h1, h2, h3, h4, h5, h6 {
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      h1, h2 {
+        font-weight: bold !important;
+        margin-bottom: 0.3em !important;
+      }
+      p {
+        margin-bottom: 0.2em !important;
+      }
+      button {
+        display: none !important;
+      }
     }
   </style>
 
@@ -42,7 +82,7 @@
       const ReactDOM = window.ReactDOM;
       const firebase = window.firebase;
 
-      // Firebase config - replace with your own if needed
+      // Firebase config
       const firebaseConfig = {
         apiKey: "AIzaSyAIHIVv6dJ0LlNqP_0qkYNok7xsbxHgdRY",
         authDomain: "studio-space-rental-database.firebaseapp.com",
@@ -61,7 +101,7 @@
       const rentalsRef = database.ref('rentals');
       const rentalsQuery = rentalsRef.orderByChild('shootDate');
 
-      // Helper funcs
+      // Helpers
       function calculateHours(start, end) {
         if (!start || !end) return 0;
         const startTime = new Date(`2000-01-01T${start}:00`);
@@ -89,7 +129,6 @@
       };
 
       // Components
-      // Loading spinner
       function LoadingSpinner() {
         return createElement('div', {className:"flex flex-col items-center justify-center gap-2"},
           createElement('div', {className:"w-12 h-12 rounded-full animate-spin border-4 border-solid border-yellow-500 border-t-transparent", role:"status", "aria-label":"loading"}),
@@ -97,7 +136,6 @@
         );
       }
 
-      // Login modal
       function LoginModal({isOpen, onClose, onLogin}) {
         const [password, setPassword] = useState('');
         const [error, setError] = useState('');
@@ -145,7 +183,6 @@
         );
       }
 
-      // Rental Form
       function RentalForm({rentalToEdit, onSubmitSuccess}) {
         const initialEquipment = { cameras:1, mic:"None", lights:2 };
         const initialFormData = {
@@ -233,209 +270,191 @@
         }
 
         const isEditing = !!(rentalToEdit && rentalToEdit.id);
-
         const inputClasses = "bg-gray-800 border border-gray-700 text-white p-2 rounded-md focus:ring-2 focus:ring-yellow-500 w-full";
 
-        return createElement('div', {
-          className: "bg-gray-900 p-6 rounded-xl shadow-lg ring-1 ring-gray-800 print:hidden mb-8"
-        },
-          createElement('h2', {className:"text-2xl font-bold mb-4 text-white"}, isEditing ? "Edit Rental" : "Add New Rental"),
-          error && createElement('div', {className:"bg-red-900/50 px-4 py-3 rounded mb-4 text-red-300"}, error),
-          createElement('form', {onSubmit:handleSubmit},
-            createElement('div', {className:"grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"},
-              createElement('input', {
-                type:"text", name:"clientName", value:formData.clientName, onChange:handleChange,
-                placeholder:"Client Name", required:true, className:inputClasses
-              }),
-              createElement('input', {
-                type:"date", name:"shootDate", value:formData.shootDate, onChange:handleChange,
-                required:true, className:inputClasses
-              }),
-              createElement('input', {
-                type:"time", name:"startTime", value:formData.startTime, onChange:handleChange,
-                required:true, className:inputClasses
-              }),
-              createElement('input', {
-                type:"time", name:"endTime", value:formData.endTime, onChange:handleChange,
-                required:true, className:inputClasses
-              }),
-              createElement('input', {
-                type:"tel", name:"phoneNumber", value:formData.phoneNumber, onChange:handleChange,
-                placeholder:"Phone Number", maxLength:"10", required:true, className:inputClasses
-              }),
-              createElement('input', {
-                type:"number", name:"paidAmount", value:formData.paidAmount || '',
-                onChange:handleChange,
-                placeholder:"Paid Amount", min:"0", step:"0.01", required:true,
-                className: `${inputClasses} text-lg font-medium`
-              }),
-              createElement('select', {
-                name:"paymentMethod", value:formData.paymentMethod, onChange:handleChange,
-                className:inputClasses
-              }, PAYMENT_METHODS.map(m => createElement('option', {key:m, value:m}, m))),
-              createElement('select', {
-                name:"description", value:formData.description, onChange:handleChange,
-                className:inputClasses
-              }, Object.entries(DESCRIPTION_OPTIONS).map(([k,v]) => createElement('option', {key:k, value:k}, v)))
+        return createElement('div', { className: "bg-gray-900 p-6 rounded-xl shadow-lg ring-1 ring-gray-800 print:hidden mb-8" },
+          createElement('h2', { className: "text-2xl font-bold mb-4 text-white" }, isEditing ? "Edit Rental" : "Add New Rental"),
+          error && createElement('div', { className:"bg-red-900/50 px-4 py-3 rounded mb-4 text-red-300" }, error),
+          createElement('form', { onSubmit: handleSubmit },
+            createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" },
+              createElement('input', { type: "text", name: "clientName", placeholder: "Client Name", value: formData.clientName, onChange: handleChange, required: true, className: inputClasses }),
+              createElement('input', { type: "date", name: "shootDate", value: formData.shootDate, onChange: handleChange, required: true, className: inputClasses }),
+              createElement('input', { type: "time", name: "startTime", value: formData.startTime, onChange: handleChange, required: true, className: inputClasses }),
+              createElement('input', { type: "time", name: "endTime", value: formData.endTime, onChange: handleChange, required: true, className: inputClasses }),
+              createElement('input', { type: "tel", name: "phoneNumber", placeholder: "Phone Number", maxLength: 10, value: formData.phoneNumber, onChange: handleChange, required: true, className: inputClasses }),
+              createElement('input', { type: "number", name: "paidAmount", placeholder: "Paid Amount", step: "0.01", min: "0", value: formData.paidAmount || '', onChange: handleChange, required: true, className: `${inputClasses} text-lg font-medium` }),
+              createElement('select', { name: "paymentMethod", value: formData.paymentMethod, onChange: handleChange, className: inputClasses }, PAYMENT_METHODS.map(m => createElement('option', { key: m, value: m }, m))),
+              createElement('select', { name: "description", value: formData.description, onChange: handleChange, className: inputClasses }, Object.entries(DESCRIPTION_OPTIONS).map(([k,v]) => createElement('option', { key: k, value: k }, v)))
             ),
-            formData.description === 'studio-equipment' && createElement('div', {className:"mt-4 p-4 bg-gray-800/50 rounded-lg border border-gray-700"},
-              createElement('h3', {className:"text-lg font-semibold mb-2 text-gray-300"}, "Equipment Details"),
-              createElement('div', {className:"grid grid-cols-1 md:grid-cols-3 gap-4"},
+            formData.description === 'studio-equipment' && createElement('div', { className: "mt-4 p-4 bg-gray-800/50 rounded-lg border border-gray-700" },
+              createElement('h3', { className: "text-lg font-semibold mb-2 text-gray-300" }, "Equipment Details"),
+              createElement('div', { className: "grid grid-cols-1 md:grid-cols-3 gap-4" },
                 createElement('div', null,
-                  createElement('label', {htmlFor:"cameras", className:"block text-sm font-medium text-gray-400"}, "No. of Cameras"),
-                  createElement('input', {
-                    id:"cameras", type:"number", name:"cameras",
-                    value:formData.equipment?.cameras ?? 1, onChange:handleChange,
-                    min:"0",
-                    className: `mt-1 text-center text-lg font-medium ${inputClasses}`
-                  })
+                  createElement('label', { htmlFor: "cameras", className: "block text-sm font-medium text-gray-400" }, "No. of Cameras"),
+                  createElement('input', { id: "cameras", type: "number", name: "cameras", min: "0", value: formData.equipment?.cameras ?? 1, onChange: handleChange, className: `mt-1 text-center text-lg font-medium ${inputClasses}` })
                 ),
                 createElement('div', null,
-                  createElement('label', {htmlFor:"mic", className:"block text-sm font-medium text-gray-400"}, "Microphone"),
-                  createElement('select', {
-                    id:"mic", name:"mic",
-                    value:formData.equipment?.mic ?? "None", onChange:handleChange,
-                    className: `mt-1 ${inputClasses}`
-                  }, MIC_OPTIONS.map(m => createElement('option', {key:m, value:m}, m)))
+                  createElement('label', { htmlFor: "mic", className: "block text-sm font-medium text-gray-400" }, "Microphone"),
+                  createElement('select', { id: "mic", name: "mic", value: formData.equipment?.mic ?? "None", onChange: handleChange, className: `mt-1 ${inputClasses}` }, MIC_OPTIONS.map(m => createElement('option', { key: m, value: m }, m)))
                 ),
                 createElement('div', null,
-                  createElement('label', {htmlFor:"lights", className:"block text-sm font-medium text-gray-400"}, "No. of Lights"),
-                  createElement('input', {
-                    id:"lights", type:"number", name:"lights",
-                    value:formData.equipment?.lights ?? 2, onChange:handleChange,
-                    min:"0",
-                    className: `mt-1 text-center text-lg font-medium ${inputClasses}`
-                  })
+                  createElement('label', { htmlFor: "lights", className: "block text-sm font-medium text-gray-400" }, "No. of Lights"),
+                  createElement('input', { id: "lights", type: "number", name: "lights", min: "0", value: formData.equipment?.lights ?? 2, onChange: handleChange, className: `mt-1 text-center text-lg font-medium ${inputClasses}` })
                 )
               )
             ),
-            createElement('div', {className:"grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"},
-              createElement('input', {
-                type:"text", name:"utnNo", value:formData.utnNo, onChange:handleChange,
-                placeholder:"UTN No (Optional)", className:inputClasses
-              }),
-              createElement('input', {
-                type:"text", name:"notes", value:formData.notes, onChange:handleChange,
-                placeholder:"Notes (Optional)", className:inputClasses
-              })
+            createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4 mt-4" },
+              createElement('input', { type: "text", name: "utnNo", placeholder: "UTN No (Optional)", value: formData.utnNo, onChange: handleChange, className: inputClasses }),
+              createElement('input', { type: "text", name: "notes", placeholder: "Notes (Optional)", value: formData.notes, onChange: handleChange, className: inputClasses })
             ),
-            createElement('div', {className:"mt-6 flex items-center gap-4"},
+            createElement('div', { className: "mt-6 flex items-center gap-4" },
               createElement('button', {
-                type:"submit", disabled:isSubmitting,
-                className:"bg-yellow-500 text-black font-bold px-6 py-2 rounded-md hover:bg-yellow-600 disabled:bg-yellow-400/50"
+                type: "submit",
+                disabled: isSubmitting,
+                className: "bg-yellow-500 text-black font-bold px-6 py-2 rounded-md hover:bg-yellow-600 disabled:bg-yellow-400/50"
               }, isSubmitting ? (isEditing ? "Updating..." : "Saving...") : (isEditing ? "Update" : "Add Rental")),
               isEditing && createElement('button', {
-                type:"button",
+                type: "button",
                 onClick: () => {
                   onSubmitSuccess('');
                   setFormData(initialFormData);
                   setError('');
                 },
-                className:"text-gray-400 hover:text-white"
+                className: "text-gray-400 hover:text-white"
               }, "Cancel")
             )
           )
         );
       }
 
-      // Rental List
       function RentalList({rentals, isAdmin, onEdit, onDelete}) {
-
         function formatEquipment(equipment) {
-          if(!equipment) return "-";
-          let parts = [];
-          if(equipment.cameras > 0) parts.push(`Cams: ${equipment.cameras}`);
-          if(equipment.mic && equipment.mic !== 'None') parts.push(`Mic: ${equipment.mic}`);
-          if(equipment.lights > 0) parts.push(`Lights: ${equipment.lights}`);
-          return parts.length ? parts.join(', ') : '-';
+          if (!equipment) return "-";
+          const parts = [];
+          if (equipment.cameras > 0) parts.push("Cams: " + equipment.cameras);
+          if (equipment.mic && equipment.mic !== "None") parts.push("Mic: " + equipment.mic);
+          if (equipment.lights > 0) parts.push("Lights: " + equipment.lights);
+          return parts.length ? parts.join(", ") : "-";
         }
 
-        if(!rentals.length) {
-          return createElement('div', {className:"text-center py-10 bg-gray-900 rounded-lg"}, 
-            createElement('p', {className:"text-gray-400"}, "No rental records found.")
+        if (!rentals.length) {
+          return createElement("div", { className: "text-center py-10 bg-gray-900 rounded-lg" },
+            createElement("p", { className: "text-gray-400" }, "No rental records found.")
           );
         }
 
-        return createElement('div', {className:"bg-gray-900 rounded-xl shadow-lg ring-1 ring-gray-800 overflow-hidden"},
-          createElement('div', {className:"overflow-x-auto"},
-            createElement('table', {className:"w-full text-sm text-left text-gray-400"},
-              createElement('thead', {className:"text-xs text-gray-300 uppercase bg-gray-800"},
-                createElement('tr', null,
-                  ['Client', 'Date', 'Timing', 'Hours', 'Equipment', 'Phone', 'Paid', 'Payment', 'UTN', 'Notes'].map(h => createElement('th', {key:h, className:"px-6 py-3"}, h)),
-                  isAdmin && createElement('th', {className:"px-6 py-3 print:hidden"}, "Actions")
+        return createElement("div", { className: "bg-gray-900 rounded-xl shadow-lg ring-1 ring-gray-800 overflow-hidden" },
+          createElement("div", { className: "overflow-x-auto" },
+            createElement("table", { className: "w-full text-sm text-left text-gray-400" },
+              createElement("thead", { className: "text-xs text-gray-300 uppercase bg-gray-800" },
+                createElement("tr", null,
+                  ["Client", "Date", "Timing", "Hours", "Equipment", "Phone", "Paid", "Payment", "UTN", "Notes"].map(h =>
+                    createElement("th", { key: h, className: "px-6 py-3" }, h)
+                  ),
+                  isAdmin && createElement("th", { className: "px-6 py-3 print:hidden" }, "Actions")
                 )
               ),
-              createElement('tbody', null,
-                rentals.map(r => createElement('tr', {
-                  key: r.id,
-                  className: "border-b border-gray-800 hover:bg-gray-800/50",
-                },
-                  createElement('td', {className:"px-6 py-4 font-medium text-white"}, r.clientName || '-'),
-                  createElement('td', {className:"px-6 py-4"}, r.shootDate || '-'),
-                  createElement('td', {className:"px-6 py-4"}, (r.startTime && r.endTime) ? `${r.startTime} - ${r.endTime}` : '-'),
-                  createElement('td', {className:"px-6 py-4"}, (typeof r.hours === 'number') ? r.hours.toFixed(2) : '-'),
-                  createElement('td', {className:"px-6 py-4"}, formatEquipment(r.equipment)),
-                  createElement('td', {className:"px-6 py-4"}, r.phoneNumber || '-'),
-                  createElement('td', {className:"px-6 py-4 font-semibold text-yellow-400"}, `₹${r.paidAmount?.toLocaleString('en-IN') ?? '0'}`),
-                  createElement('td', {className:"px-6 py-4"}, r.paymentMethod || '-'),
-                  createElement('td', {className:"px-6 py-4"}, r.utnNo || '-'),
-                  createElement('td', {className:"px-6 py-4 min-w-[200px]"}, r.notes || '-'),
-                  isAdmin && createElement('td', {className:"px-6 py-4 print:hidden"},
-                    createElement('div', {className:"flex items-center space-x-2"},
-                      createElement('button', {onClick: () => onEdit(r), className:"p-2 text-yellow-500 hover:bg-yellow-500/20 rounded-full", title:"Edit"},
-                        createElement('svg', {xmlns:"http://www.w3.org/2000/svg", width:"16", height:"16", viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"},
-                          createElement('path', {d:"M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"})
-                        )
-                      ),
-                      createElement('button', {onClick: () => {
-                        if(confirm("Are you sure you want to delete this rental?")) {
-                          onDelete(r.id);
-                        }
-                      }, className:"p-2 text-red-500 hover:bg-red-500/20 rounded-full", title:"Delete"},
-                        createElement('svg', {xmlns:"http://www.w3.org/2000/svg", width:"16", height:"16", viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:"2", strokeLinecap:"round", strokeLinejoin:"round"},
-                          createElement('path', {d:"M3 6h18"}),
-                          createElement('path', {d:"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"}),
-                          createElement('line', {x1:"10", y1:"11", x2:"10", y2:"17"}),
-                          createElement('line', {x1:"14", y1:"11", x2:"14", y2:"17"})
+              createElement("tbody", null,
+                rentals.map(r =>
+                  createElement("tr", { key: r.id, className: "border-b border-gray-800 hover:bg-gray-800/50" },
+                    createElement("td", { className: "px-6 py-4 font-medium text-white" }, r.clientName || "-"),
+                    createElement("td", { className: "px-6 py-4" }, r.shootDate || "-"),
+                    createElement("td", { className: "px-6 py-4" }, r.startTime && r.endTime ? `${r.startTime} - ${r.endTime}` : "-"),
+                    createElement("td", { className: "px-6 py-4" }, typeof r.hours === "number" ? r.hours.toFixed(2) : "-"),
+                    createElement("td", { className: "px-6 py-4" }, formatEquipment(r.equipment)),
+                    createElement("td", { className: "px-6 py-4" }, r.phoneNumber || "-"),
+                    createElement("td", { className: "px-6 py-4 font-semibold text-yellow-400" }, `₹${r.paidAmount?.toLocaleString("en-IN") ?? "0"}`),
+                    createElement("td", { className: "px-6 py-4" }, r.paymentMethod || "-"),
+                    createElement("td", { className: "px-6 py-4" }, r.utnNo || "-"),
+                    createElement("td", { className: "px-6 py-4 min-w-[200px]" }, r.notes || "-"),
+                    isAdmin &&
+                    createElement("td", { className: "px-6 py-4 print:hidden" },
+                      createElement("div", { className: "flex items-center space-x-2" },
+                        createElement(
+                          "button",
+                          {
+                            onClick: () => onEdit(r),
+                            className: "p-2 text-yellow-500 hover:bg-yellow-500/20 rounded-full",
+                            title: "Edit",
+                          },
+                          createElement("svg", {
+                            xmlns: "http://www.w3.org/2000/svg",
+                            width: "16",
+                            height: "16",
+                            viewBox: "0 0 24 24",
+                            fill: "none",
+                            stroke: "currentColor",
+                            strokeWidth: "2",
+                            strokeLinecap: "round",
+                            strokeLinejoin: "round",
+                          },
+                            createElement("path", { d: "M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" })
+                          )
+                        ),
+                        createElement(
+                          "button",
+                          {
+                            onClick: () => {
+                              if (confirm("Are you sure you want to delete this rental?")) {
+                                onDelete(r.id);
+                              }
+                            },
+                            className: "p-2 text-red-500 hover:bg-red-500/20 rounded-full",
+                            title: "Delete",
+                          },
+                          createElement("svg", {
+                            xmlns: "http://www.w3.org/2000/svg",
+                            width: "16",
+                            height: "16",
+                            viewBox: "0 0 24 24",
+                            fill: "none",
+                            stroke: "currentColor",
+                            strokeWidth: "2",
+                            strokeLinecap: "round",
+                            strokeLinejoin: "round",
+                          },
+                            createElement("path", { d: "M3 6h18" }),
+                            createElement("path", { d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" }),
+                            createElement("line", { x1: "10", y1: "11", x2: "10", y2: "17" }),
+                            createElement("line", { x1: "14", y1: "11", x2: "14", y2: "17" })
+                          )
                         )
                       )
                     )
                   )
-                ))
+                )
               )
             )
           )
         );
       }
 
-      // Summary
-      function Summary({rentals}) {
+      function Summary({ rentals }) {
         const stats = useMemo(() => {
-          const totalAmount = rentals.reduce((a,e) => a + (e.paidAmount||0),0);
-          const totalHours = rentals.reduce((a,e) => a + (e.hours||0),0);
-          return {totalAmount, totalHours, totalShoots: rentals.length};
+          const totalAmount = rentals.reduce((a, e) => a + (e.paidAmount || 0), 0);
+          const totalHours = rentals.reduce((a, e) => a + (e.hours || 0), 0);
+          return { totalAmount, totalHours, totalShoots: rentals.length };
         }, [rentals]);
 
-        return createElement('div', {className:"mt-6 border-t border-gray-800 pt-6"},
-          createElement('h2', {className:"text-xl font-bold mb-4 text-white"}, "Summary"),
-          createElement('div', {className:"grid grid-cols-1 md:grid-cols-3 gap-4 text-center"},
-            createElement('div', {className:"bg-gray-800/50 p-4 rounded-lg ring-1 ring-gray-800"},
-              createElement('p', {className:"text-sm text-yellow-500 font-semibold"}, "Total Amount"),
-              createElement('p', {className:"text-2xl font-bold text-white mt-1"}, `₹${stats.totalAmount.toLocaleString('en-IN')}`)
+        return createElement("div", { className: "mt-6 border-t border-gray-800 pt-6" },
+          createElement("h2", { className: "text-xl font-bold mb-4 text-white" }, "Summary"),
+          createElement("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-4 text-center" },
+            createElement("div", { className: "bg-gray-800/50 p-4 rounded-lg ring-1 ring-gray-800" },
+              createElement("p", { className: "text-sm text-yellow-500 font-semibold" }, "Total Amount"),
+              createElement("p", { className: "text-2xl font-bold text-white mt-1" }, `₹${stats.totalAmount.toLocaleString("en-IN")}`)
             ),
-            createElement('div', {className:"bg-gray-800/50 p-4 rounded-lg ring-1 ring-gray-800"},
-              createElement('p', {className:"text-sm text-yellow-500 font-semibold"}, "Total Hours"),
-              createElement('p', {className:"text-2xl font-bold text-white mt-1"}, stats.totalHours.toFixed(2))
+            createElement("div", { className: "bg-gray-800/50 p-4 rounded-lg ring-1 ring-gray-800" },
+              createElement("p", { className: "text-sm text-yellow-500 font-semibold" }, "Total Hours"),
+              createElement("p", { className: "text-2xl font-bold text-white mt-1" }, stats.totalHours.toFixed(2))
             ),
-            createElement('div', {className:"bg-gray-800/50 p-4 rounded-lg ring-1 ring-gray-800"},
-              createElement('p', {className:"text-sm text-yellow-500 font-semibold"}, "Total Shoots"),
-              createElement('p', {className:"text-2xl font-bold text-white mt-1"}, stats.totalShoots)
+            createElement("div", { className: "bg-gray-800/50 p-4 rounded-lg ring-1 ring-gray-800" },
+              createElement("p", { className: "text-sm text-yellow-500 font-semibold" }, "Total Shoots"),
+              createElement("p", { className: "text-2xl font-bold text-white mt-1" }, stats.totalShoots)
             )
           )
         );
       }
 
-      // Main App
       function App() {
         const [isAdmin, setIsAdmin] = useState(false);
         const [showLogin, setShowLogin] = useState(false);
@@ -575,7 +594,6 @@
         );
       }
 
-      // Render app
       ReactDOM.createRoot(document.getElementById('root')).render(createElement(App));
     })();
   </script>
