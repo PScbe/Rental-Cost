@@ -78,6 +78,10 @@
       tr { page-break-inside: avoid; }
       div, p, h1, h2, h3, h4, h5, h6 { margin: 0 !important; padding: 0 !important; }
       h1, h2 { font-weight: bold !important; margin-bottom: 0.3em !important; }
+      /* New style to hide elements when printing */
+      .hide-on-print {
+        display: none !important;
+      }
     }
   </style>
 
@@ -558,12 +562,12 @@
       );
     }
     
-    function RentalList({ title, rentals, isAdmin, onEdit, onDelete, isTodayList = false }) {
+    function RentalList({ title, rentals, isAdmin, onEdit, onDelete, isTodayList = false, className = "" }) { // Added className prop
       const todayStr = getTodayDateString();
 
       if (!rentals.length) {
           if (!title) return null; // Don't render anything if no title and no rentals (for the 'other bookings' list)
-          return createElement("div", { className: "mb-12" },
+          return createElement("div", { className: `mb-12 ${className}` }, // Applied className here
               createElement('h2', { className: "text-3xl font-bold text-yellow-400 border-b-2 border-gray-700 pb-2 mb-6" }, title),
               createElement("div", { className: "text-center py-10 px-6 bg-gray-900 rounded-lg border border-dashed border-gray-700" },
                   createElement("p", { className: "text-gray-400" }, isTodayList ? "No shoots scheduled for today." : "No bookings found for the selected month.")
@@ -574,7 +578,7 @@
       // Updated header titles
       const headerTitles = ["Client", "Date", "Time", "Location/Equipment", "Payment", "Notes"];
 
-      return createElement("div", { className: "mb-12" },
+      return createElement("div", { className: `mb-12 ${className}` }, // Applied className here
           title && createElement('h2', { className: "text-3xl font-bold text-yellow-400 border-b-2 border-gray-700 pb-2 mb-6" }, title),
           createElement("div", { className: "bg-gray-900 rounded-xl shadow-lg ring-1 ring-gray-800 overflow-hidden" },
               createElement("div", { className: "overflow-x-auto" },
@@ -839,10 +843,8 @@
           return { upcomingBookings: upcoming, todaysBookings: todays, pastBookings: past };
       }, [bookings, currentTime]);
 
-      const filteredUpcomingBookings = useMemo(() => {
-          if (selectedMonth === "all") return upcomingBookings;
-          return upcomingBookings.filter(b => b.bookingSegments && b.bookingSegments.length > 0 && new Date(b.bookingSegments[0].date).getMonth() + 1 === Number(selectedMonth));
-      }, [upcomingBookings, selectedMonth]);
+      // Upcoming bookings will no longer be filtered by month
+      const filteredUpcomingBookings = upcomingBookings;
 
       const filteredPastBookings = useMemo(() => {
           if (selectedMonth === "all") return pastBookings;
@@ -870,11 +872,22 @@
 
           loading ? createElement(LoadingSpinner) : 
           createElement(Fragment, null, 
-              createElement(RentalList, { title: "Today's Shoots", rentals: todaysBookings, isAdmin: isAdmin, onEdit: handleEdit, onDelete: handleDelete, isTodayList: true }),
+              createElement(RentalList, { title: "Today's Shoots", rentals: todaysBookings, isAdmin: isAdmin, onEdit: handleEdit, onDelete: handleDelete, isTodayList: true, className: "hide-on-print" }),
               
+              createElement('div', { className: "my-8 hide-on-print" }, // This div is now entirely hidden on print
+                  createElement('h2', { className: "text-3xl font-bold text-yellow-400 border-b-2 border-gray-700 pb-2 mb-6" }, "Upcoming Bookings"),
+                  createElement(RentalList, { 
+                      rentals: filteredUpcomingBookings, // No longer filtered by month
+                      isAdmin: isAdmin, 
+                      onEdit: handleEdit, 
+                      onDelete: handleDelete,
+                  })
+              ),
+              
+              // Past bookings section with its month filter
               createElement('div', { className: "my-8" },
                   createElement('div', { className: "flex flex-col sm:flex-row justify-between items-center gap-4 mb-6" },
-                      createElement('h2', { className: "text-3xl font-bold text-yellow-400 border-b-2 border-gray-700 pb-2" }, "Upcoming Bookings"),
+                      createElement('h2', { className: "text-3xl font-bold text-yellow-400 border-b-2 border-gray-700 pb-2" }, "Past Bookings"),
                       createElement('div', null,
                           createElement('label', { htmlFor: "month-filter", className: "font-semibold text-gray-400 mr-2" }, "Filter by Month:"),
                           createElement('select', { id: "month-filter", className: "bg-gray-800 border border-gray-700 rounded-md px-2 py-1 text-white", value: selectedMonth, onChange: e => setSelectedMonth(e.target.value) },
@@ -883,15 +896,8 @@
                           )
                       )
                   ),
-                  createElement(RentalList, { 
-                      rentals: filteredUpcomingBookings, 
-                      isAdmin: isAdmin, 
-                      onEdit: handleEdit, 
-                      onDelete: handleDelete 
-                  })
+                  createElement(RentalList, { title: "", rentals: filteredPastBookings, isAdmin: isAdmin, onEdit: handleEdit, onDelete: handleDelete }) // Title removed as it's handled by the h2 above
               ),
-              
-              createElement(RentalList, { title: "Past Bookings", rentals: filteredPastBookings, isAdmin: isAdmin, onEdit: handleEdit, onDelete: handleDelete }),
 
               createElement('div', { className: "my-8 bg-gray-900 p-4 sm:p-6 rounded-xl shadow-md ring-1 ring-gray-800 summary-print-container" },
                   createElement(Summary, { rentals: filteredPastBookings }),
