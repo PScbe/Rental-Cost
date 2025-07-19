@@ -126,11 +126,29 @@
         return date.toISOString().split('T')[0];
     }
 
-    // New helper function for DD-MM-YYYY format
+    // Helper function for DD-MM-YYYY format (kept for potential other uses, though not directly used in table anymore)
     function formatDateToDDMMYYYY(dateString) {
         if (!dateString) return '';
         const [year, month, day] = dateString.split('-');
         return `${day}-${month}-${year}`;
+    }
+
+    // New helper function for Month Day format (e.g., JUL 19)
+    function formatDateToMonthDay(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const options = { month: 'short', day: 'numeric' };
+        return date.toLocaleDateString('en-US', options).toUpperCase();
+    }
+
+    // New helper function for 12-hour time format (e.g., 6:00 PM)
+    function formatTimeTo12Hour(timeString) {
+        if (!timeString) return '';
+        const [hours, minutes] = timeString.split(':');
+        const date = new Date();
+        date.setHours(parseInt(hours), parseInt(minutes));
+        const options = { hour: 'numeric', minute: '2-digit', hour12: true };
+        return date.toLocaleTimeString('en-US', options);
     }
 
     // Constants:
@@ -553,7 +571,8 @@
           );
       }
 
-      const headerTitles = ["Client", "Timing", "Status", "Location/Equipment", "Payment", "Notes"];
+      // Updated header titles
+      const headerTitles = ["Client", "Date", "Time", "Location/Equipment", "Payment", "Notes"];
 
       return createElement("div", { className: "mb-12" },
           title && createElement('h2', { className: "text-3xl font-bold text-yellow-400 border-b-2 border-gray-700 pb-2 mb-6" }, title),
@@ -575,29 +594,25 @@
                                           // Display date range if multiple segments exist
                                           !isTodayList && r.bookingSegments && r.bookingSegments.length > 1 && 
                                               createElement("div", { className: "text-xs text-gray-500" }, 
-                                                  `${formatDateToDDMMYYYY(r.bookingSegments[0].date)} - ${formatDateToDDMMYYYY(r.bookingSegments[r.bookingSegments.length - 1].date)}`
+                                                  `${formatDateToMonthDay(r.bookingSegments[0].date)} - ${formatDateToMonthDay(r.bookingSegments[r.bookingSegments.length - 1].date)}`
                                               )
                                       )
                                   ),
+                                  // Date Column
                                   createElement("td", { className: "px-6 py-4" }, 
                                       r.bookingSegments && r.bookingSegments.map((segment, idx) => 
                                           createElement('div', { key: idx, className: "text-xs" }, 
-                                              `${formatDateToDDMMYYYY(segment.date)} ${segment.startTime} - ${segment.endTime}${r.isInHouseClient ? ' (InHouse)' : ''}`
+                                              formatDateToMonthDay(segment.date)
                                           )
                                       )
                                   ),
+                                  // Time Column
                                   createElement("td", { className: "px-6 py-4" }, 
-                                      r.bookingSegments && r.bookingSegments.map((segment, idx) => {
-                                          let status = '';
-                                          if (segment.date === todayStr) {
-                                              status = 'Today Shoot';
-                                          } else if (new Date(segment.date) < new Date(todayStr)) {
-                                              status = 'Past Shoot';
-                                          } else {
-                                              status = 'Upcoming Shoot';
-                                          }
-                                          return createElement('div', { key: idx, className: "text-xs" }, status);
-                                      })
+                                      r.bookingSegments && r.bookingSegments.map((segment, idx) => 
+                                          createElement('div', { key: idx, className: "text-xs" }, 
+                                              `${formatTimeTo12Hour(segment.startTime)}${segment.endTime && !r.isInHouseClient ? ` - ${formatTimeTo12Hour(segment.endTime)}` : ''}${r.isInHouseClient ? ' (InHouse)' : ''}`
+                                          )
+                                      )
                                   ),
                                   createElement("td", { className: "px-6 py-4" },
                                       createElement('div', { className: "flex flex-col gap-1" },
@@ -621,9 +636,9 @@
                                       // Conditionally display payment info
                                       !r.isInHouseClient ?
                                       createElement('div', { className: "flex flex-col" },
+                                          r.isAdvance && (r.totalAmount - r.paidAmount) > 0 ?
+                                          createElement('span', { className: "font-semibold text-red-400" }, `Balance: ₹${(r.totalAmount - r.paidAmount).toLocaleString("en-IN")}`) :
                                           createElement('span', { className: "font-semibold text-yellow-400" }, `₹${r.paidAmount?.toLocaleString("en-IN") ?? "0"}`),
-                                          r.isAdvance && r.totalAmount > 0 && createElement('span', { className: "text-xs text-gray-500" }, `Total: ₹${r.totalAmount.toLocaleString("en-IN")}`),
-                                          r.isAdvance && r.totalAmount > 0 && createElement('span', { className: "text-xs text-gray-500" }, `Balance: ₹${(r.totalAmount - r.paidAmount).toLocaleString("en-IN")}`),
                                           createElement('span', { className: "text-xs text-gray-500" }, `${r.paymentMethod || ''}${r.isAdvance ? ' (Advance)' : ''}`)
                                       ) : createElement('span', { className: "text-gray-500" }, "N/A (InHouse)")
                                   ),
