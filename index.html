@@ -42,11 +42,9 @@
     }
   </style>
 
-  <!-- React and ReactDOM UMD -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 
-  <!-- Firebase UMD SDK (Global Scope) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
@@ -81,6 +79,19 @@
       const offset = today.getTimezoneOffset();
       const todayLocal = new Date(today.getTime() - offset * 60 * 1000);
       return todayLocal.toISOString().split('T')[0];
+    }
+
+    function getNextDayDateString(dateString) {
+        const date = new Date(dateString);
+        date.setDate(date.getDate() + 1);
+        return date.toISOString().split('T')[0];
+    }
+
+    // New helper function for DD-MM-YYYY format
+    function formatDateToDDMMYYYY(dateString) {
+        if (!dateString) return '';
+        const [year, month, day] = dateString.split('-');
+        return `${day}-${month}-${year}`;
     }
 
     // Constants:
@@ -120,49 +131,93 @@
     function RentalForm({ rentalToEdit, onSubmitSuccess, onCancel }) {
       const initialFormData = {
           clientName: '',
-          date: getTodayDateString(),
-          startTime: '10:00',
-          endTime: '18:00',
+          bookingSegments: [{ date: getTodayDateString(), startTime: '10:00', endTime: '18:00' }], // Array for multiple dates
           isOutside: false,
           location: '',
           withEquipment: false,
-          hasCamera: false, // New state for camera checkbox
-          cameras: 1, // Default camera count
+          hasCamera: false,
+          cameras: 1,
           mic: false,
           lights: false,
           note: '',
-          paidAmount: 0,
-          paymentMethod: 'UPI',
+          // Modified: Set paidAmount and totalAmount to empty string for new bookings
+          paidAmount: '', 
           isAdvance: false,
+          totalAmount: '', 
+          paymentMethod: 'UPI',
       };
 
-      const [formData, setFormData] = useState(rentalToEdit ? { ...initialFormData, ...rentalToEdit } : initialFormData);
+      const [formData, setFormData] = useState(rentalToEdit ? { 
+          ...initialFormData, 
+          ...rentalToEdit,
+          // Ensure bookingSegments is an array, even if loaded as single date/time
+          bookingSegments: rentalToEdit.bookingSegments || [{ date: rentalToEdit.date, startTime: rentalToEdit.startTime, endTime: rentalToEdit.endTime }].filter(s => s.date),
+          // Ensure paidAmount and totalAmount are numbers for existing rentals, or empty string for new
+          paidAmount: rentalToEdit.paidAmount !== undefined ? Number(rentalToEdit.paidAmount) : '',
+          totalAmount: rentalToEdit.totalAmount !== undefined ? Number(rentalToEdit.totalAmount) : '',
+      } : initialFormData);
       const [isSubmitting, setIsSubmitting] = useState(false);
       const [error, setError] = useState('');
 
       useEffect(() => {
-          if (rentalToEdit) setFormData({ ...initialFormData, ...rentalToEdit });
+          if (rentalToEdit) {
+              setFormData({ 
+                  ...initialFormData, 
+                  ...rentalToEdit,
+                  bookingSegments: rentalToEdit.bookingSegments || [{ date: rentalToEdit.date, startTime: rentalToEdit.startTime, endTime: rentalToEdit.endTime }].filter(s => s.date),
+                  paidAmount: rentalToEdit.paidAmount !== undefined ? Number(rentalToEdit.paidAmount) : '',
+                  totalAmount: rentalToEdit.totalAmount !== undefined ? Number(rentalToEdit.totalAmount) : '',
+              });
+          }
           else setFormData(initialFormData);
           setError('');
       }, [rentalToEdit]);
 
       function handleChange(e) {
           const { name, value, type, checked } = e.target;
-          const val = type === 'checkbox' ? checked : value;
+          // For number inputs, convert empty string to 0 or keep as empty string if it's not a valid number
+          const val = type === 'checkbox' ? checked : (type === 'number' && value === '' ? '' : value);
 
           setFormData(fd => {
               const newFd = { ...fd, [name]: val };
               if (name === 'isOutside' && !checked) newFd.location = '';
               if (name === 'withEquipment' && !checked) {
-                  newFd.hasCamera = false; // Reset camera checkbox if no equipment
-                  newFd.cameras = 1; // Reset camera count
+                  newFd.hasCamera = false;
+                  newFd.cameras = 1;
                   newFd.mic = false;
                   newFd.lights = false;
               }
               if (name === 'hasCamera' && !checked) {
-                  newFd.cameras = 1; // Reset camera count if camera checkbox is unchecked
+                  newFd.cameras = 1;
+              }
+              if (name === 'isAdvance' && !checked) {
+                  newFd.totalAmount = ''; // Reset total amount to empty string if advance is unchecked
               }
               return newFd;
+          });
+      }
+
+      function handleSegmentChange(index, field, value) {
+          setFormData(fd => {
+              const newSegments = [...fd.bookingSegments];
+              newSegments[index] = { ...newSegments[index], [field]: value };
+              return { ...fd, bookingSegments: newSegments };
+          });
+      }
+
+      function handleAddNextDate() {
+          setFormData(fd => {
+              const lastSegment = fd.bookingSegments[fd.bookingSegments.length - 1];
+              const nextDate = getNextDayDateString(lastSegment.date);
+              const newSegment = { date: nextDate, startTime: lastSegment.startTime, endTime: lastSegment.endTime };
+              return { ...fd, bookingSegments: [...fd.bookingSegments, newSegment] };
+          });
+      }
+
+      function handleRemoveSegment(index) {
+          setFormData(fd => {
+              const newSegments = fd.bookingSegments.filter((_, i) => i !== index);
+              return { ...fd, bookingSegments: newSegments.length > 0 ? newSegments : [{ date: getTodayDateString(), startTime: '10:00', endTime: '18:00' }] };
           });
       }
 
@@ -170,32 +225,63 @@
           e.preventDefault();
           setError('');
 
-          if (!formData.clientName || !formData.date || !formData.startTime || !formData.endTime) {
-              setError("Client Name, Date, Start Time and End Time are required.");
+          if (!formData.clientName) {
+              setError("Client Name is required.");
               return;
           }
-          if(formData.startTime >= formData.endTime) {
-              setError("End time must be after start time.");
-              return;
-          }
-          if(formData.isOutside && !formData.location) {
+
+          if (formData.isOutside && !formData.location) {
               setError("Location is required for outside shoots.");
               return;
           }
-          // Validation for cameras if hasCamera is true
+
+          // Validate all booking segments
+          for (const segment of formData.bookingSegments) {
+              if (!segment.date || !segment.startTime || !segment.endTime) {
+                  setError("All date, start time, and end time fields are required for each booking segment.");
+                  return;
+              }
+              if (segment.startTime >= segment.endTime) {
+                  setError("End time must be after start time for all booking segments.");
+                  return;
+              }
+          }
+          
           if (formData.hasCamera && (formData.cameras < 1 || isNaN(formData.cameras))) {
               setError("Number of cameras must be at least 1 when 'Camera' is selected.");
+              return;
+          }
+
+          // Convert paidAmount and totalAmount to numbers, defaulting to 0 if empty or invalid
+          const paidAmountNum = Number(formData.paidAmount) || 0;
+          const totalAmountNum = Number(formData.totalAmount) || 0;
+
+          if (formData.isAdvance && totalAmountNum <= 0) {
+              setError("Total Amount must be greater than 0 for advance payments.");
+              return;
+          }
+          if (formData.isAdvance && paidAmountNum > totalAmountNum) {
+              setError("Paid Amount cannot be greater than Total Amount for advance payments.");
               return;
           }
 
 
           setIsSubmitting(true);
           try {
-              const dataToSave = { ...formData, timestamp: Date.now() };
-              // Ensure cameras is only saved if hasCamera is true, otherwise set to 0 or null
+              const dataToSave = { 
+                  ...formData, 
+                  paidAmount: paidAmountNum, // Save as number
+                  totalAmount: totalAmountNum, // Save as number
+                  timestamp: Date.now() 
+              };
+              // Ensure cameras is only saved if hasCamera is true, otherwise set to 0
               if (!formData.hasCamera) {
-                  dataToSave.cameras = 0; // Or delete dataToSave.cameras;
+                  dataToSave.cameras = 0;
               }
+              // Clean up single date/time fields if bookingSegments is used
+              delete dataToSave.date;
+              delete dataToSave.startTime;
+              delete dataToSave.endTime;
 
               if (rentalToEdit && rentalToEdit.id) {
                   await rentalsRef.child(rentalToEdit.id).update(dataToSave);
@@ -217,6 +303,9 @@
       const checkboxLabelClasses = "flex items-center space-x-3 text-white cursor-pointer";
       const checkboxClasses = "h-5 w-5 rounded bg-gray-700 border-gray-500 text-yellow-400 focus:ring-yellow-400 cursor-pointer";
 
+      // Calculate balance based on numeric values, defaulting to 0 if empty string
+      const balanceAmount = formData.isAdvance ? (Number(formData.totalAmount || 0) - Number(formData.paidAmount || 0)) : 0;
+
       return createElement('div', { className: "bg-gray-900 p-6 md:p-8 rounded-xl shadow-lg ring-1 ring-gray-800 print:hidden mb-8" },
           createElement('h2', { className: "text-2xl font-bold mb-6 text-yellow-400" }, isEditing ? "Edit Booking" : "New Studio Booking"),
           error && createElement('div', { className: "bg-red-900/50 px-4 py-3 rounded mb-4 text-red-300" }, error),
@@ -237,20 +326,67 @@
                   createElement('label', { htmlFor: "clientName", className: labelClasses }, "Client Name"),
                   createElement('input', { id: "clientName", name: "clientName", type: "text", className: inputClasses, value: formData.clientName, onChange: handleChange, required: true, placeholder: "John Doe" })
               ),
-              createElement('div', { className: "grid grid-cols-1 md:grid-cols-3 gap-4" },
-                  createElement('div', null,
-                      createElement('label', { htmlFor: "date", className: labelClasses }, "Date"),
-                      createElement('input', { id: "date", name: "date", type: "date", className: inputClasses, value: formData.date, onChange: handleChange, required: true })
-                  ),
-                  createElement('div', null,
-                      createElement('label', { htmlFor: "startTime", className: labelClasses }, "Start Time"),
-                      createElement('input', { id: "startTime", name: "startTime", type: "time", className: inputClasses, value: formData.startTime, onChange: handleChange, required: true })
-                  ),
-                   createElement('div', null,
-                      createElement('label', { htmlFor: "endTime", className: labelClasses }, "End Time"),
-                      createElement('input', { id: "endTime", name: "endTime", type: "time", className: inputClasses, value: formData.endTime, onChange: handleChange, required: true })
+
+              // Booking Segments (Dates and Times)
+              createElement('div', { className: "p-3 bg-gray-800/50 rounded-lg border border-gray-700 space-y-4" },
+                  createElement('h3', { className: "text-lg font-semibold text-gray-200" }, "Booking Dates & Times"),
+                  formData.bookingSegments.map((segment, index) => (
+                      createElement('div', { key: index, className: "grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-gray-700 pt-4 first:border-t-0 first:pt-0" },
+                          createElement('div', null,
+                              createElement('label', { htmlFor: `date-${index}`, className: labelClasses }, `Date ${index + 1}`),
+                              createElement('input', { 
+                                  id: `date-${index}`, 
+                                  name: `date-${index}`, 
+                                  type: "date", 
+                                  className: inputClasses, 
+                                  value: segment.date, 
+                                  onChange: (e) => handleSegmentChange(index, 'date', e.target.value), 
+                                  required: true 
+                              })
+                          ),
+                          createElement('div', null,
+                              createElement('label', { htmlFor: `startTime-${index}`, className: labelClasses }, `Start Time ${index + 1}`),
+                              createElement('input', { 
+                                  id: `startTime-${index}`, 
+                                  name: `startTime-${index}`, 
+                                  type: "time", 
+                                  className: inputClasses, 
+                                  value: segment.startTime, 
+                                  onChange: (e) => handleSegmentChange(index, 'startTime', e.target.value), 
+                                  required: true 
+                              })
+                          ),
+                          createElement('div', { className: "flex items-end gap-2" },
+                              createElement('div', { className: "flex-grow" },
+                                  createElement('label', { htmlFor: `endTime-${index}`, className: labelClasses }, `End Time ${index + 1}`),
+                                  createElement('input', { 
+                                      id: `endTime-${index}`, 
+                                      name: `endTime-${index}`, 
+                                      type: "time", 
+                                      className: inputClasses, 
+                                      value: segment.endTime, 
+                                      onChange: (e) => handleSegmentChange(index, 'endTime', e.target.value), 
+                                      required: true 
+                                  })
+                              ),
+                              index > 0 && createElement('button', { 
+                                  type: "button", 
+                                  onClick: () => handleRemoveSegment(index), 
+                                  className: "p-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors self-center" 
+                              }, 
+                                  createElement('svg', {xmlns:"http://www.w3.org/2000/svg", fill:"none", viewBox:"0 0 24 24", strokeWidth:"1.5", stroke:"currentColor", className:"w-5 h-5"},
+                                      createElement('path', {strokeLinecap:"round", strokeLinejoin:"round", d:"M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.925a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.166m-1.022.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.925a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.166m7.452-10.45L12 12m-2.25-4.5h4.5m-1.125 0h-2.25"})
+                                  )
+                              )
+                          )
+                      )
+                  )),
+                  createElement('button', { type: "button", onClick: handleAddNextDate, className: "mt-4 w-full bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors flex items-center justify-center gap-2" },
+                      createElement('svg', {xmlns:"http://www.w3.org/2000/svg", fill:"none", viewBox:"0 0 24 24", strokeWidth:2, stroke:"currentColor", className:"w-5 h-5"}, createElement('path', {strokeLinecap:"round", strokeLinejoin:"round", d:"M12 4.5v15m7.5-7.5h-15"})),
+                      "Add Next Date"
                   )
               ),
+
               createElement('div', { className: "p-3 bg-gray-800/50 rounded-lg border border-gray-700" },
                   createElement('label', { className: checkboxLabelClasses },
                       createElement('input', { type: "checkbox", name: "withEquipment", className: checkboxClasses, checked: formData.withEquipment, onChange: handleChange }),
@@ -258,7 +394,7 @@
                   ),
                   createElement('div', { className: `pl-2 ml-2 border-l-2 border-yellow-400/50 form-section ${formData.withEquipment ? 'open' : ''}` },
                     createElement('div', { className: "mt-4 space-y-4" },
-                      // New Camera checkbox
+                      // Camera checkbox
                       createElement('div', null,
                           createElement('label', { className: checkboxLabelClasses },
                               createElement('input', { type: "checkbox", name: "hasCamera", className: checkboxClasses, checked: formData.hasCamera, onChange: handleChange }),
@@ -290,6 +426,7 @@
                   createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
                       createElement('div', null,
                           createElement('label', { htmlFor: "paidAmount", className: labelClasses }, "Paid Amount (₹)"),
+                          // Modified: value is now formData.paidAmount, which can be ''
                           createElement('input', { id: "paidAmount", name: "paidAmount", type: "number", step: "0.01", min: "0", className: inputClasses, value: formData.paidAmount, onChange: handleChange, placeholder: "e.g., 5000" })
                       ),
                       createElement('div', null,
@@ -304,6 +441,14 @@
                           createElement('input', { type: "checkbox", name: "isAdvance", className: checkboxClasses, checked: formData.isAdvance, onChange: handleChange }),
                           createElement('span', null, "This is an advance payment")
                       )
+                  ),
+                  formData.isAdvance && createElement('div', { className: "mt-4" },
+                      createElement('label', { htmlFor: "totalAmount", className: labelClasses }, "Total Amount (₹)"),
+                      // Modified: value is now formData.totalAmount, which can be ''
+                      createElement('input', { id: "totalAmount", name: "totalAmount", type: "number", step: "0.01", min: "0", className: inputClasses, value: formData.totalAmount, onChange: handleChange, placeholder: "e.g., 10000" })
+                  ),
+                  formData.isAdvance && createElement('div', { className: "mt-4 p-3 bg-gray-700 rounded-lg text-yellow-300 font-semibold" },
+                      createElement('p', null, `Balance Amount: ₹${balanceAmount.toLocaleString("en-IN")}`)
                   )
               ),
               createElement('div', null,
@@ -349,10 +494,20 @@
                                   createElement("td", { className: "px-6 py-4 font-medium text-white" },
                                       createElement(Fragment, null,
                                           r.clientName || "-",
-                                          !isTodayList && createElement("div", { className: "text-xs text-gray-500" }, r.date)
+                                          // Display all dates if multiple segments exist
+                                          !isTodayList && r.bookingSegments && r.bookingSegments.length > 1 && 
+                                              createElement("div", { className: "text-xs text-gray-500" }, 
+                                                  `${formatDateToDDMMYYYY(r.bookingSegments[0].date)} - ${formatDateToDDMMYYYY(r.bookingSegments[r.bookingSegments.length - 1].date)}`
+                                              )
                                       )
                                   ),
-                                  createElement("td", { className: "px-6 py-4" }, r.startTime && r.endTime ? `${r.startTime} - ${r.endTime}` : (r.startTime || "-")),
+                                  createElement("td", { className: "px-6 py-4" }, 
+                                      r.bookingSegments && r.bookingSegments.map((segment, idx) => 
+                                          createElement('div', { key: idx, className: "text-xs" }, 
+                                              `${formatDateToDDMMYYYY(segment.date)} ${segment.startTime} - ${segment.endTime}`
+                                          )
+                                      )
+                                  ),
                                   createElement("td", { className: "px-6 py-4" },
                                       createElement('div', { className: "flex flex-col gap-1" },
                                           r.isOutside ?
@@ -364,7 +519,7 @@
                                           r.withEquipment &&
                                           createElement('span', { className: "text-xs text-gray-500" },
                                               [
-                                                  r.hasCamera && r.cameras > 0 && `${r.cameras} cam`, // Display based on hasCamera and count
+                                                  r.hasCamera && r.cameras > 0 && `${r.cameras} cam`,
                                                   r.mic && `mic`,
                                                   r.lights && `lights`
                                               ].filter(Boolean).join(' / ')
@@ -373,7 +528,10 @@
                                   ),
                                   createElement("td", { className: "px-6 py-4" },
                                       createElement('div', { className: "flex flex-col" },
-                                          createElement('span', { className: "font-semibold text-yellow-400" }, `₹${r.paidAmount?.toLocaleString("en-IN") ?? "0"}`),
+                                          // Display paidAmount and totalAmount using their actual numeric values or 0 if undefined
+                                          createElement('span', { className: "font-semibold text-yellow-400" }, `₹${(r.paidAmount || 0).toLocaleString("en-IN")}`),
+                                          r.isAdvance && (r.totalAmount || 0) > 0 && createElement('span', { className: "text-xs text-gray-500" }, `Total: ₹${(r.totalAmount || 0).toLocaleString("en-IN")}`),
+                                          r.isAdvance && (r.totalAmount || 0) > 0 && createElement('span', { className: "text-xs text-gray-500" }, `Balance: ₹${((r.totalAmount || 0) - (r.paidAmount || 0)).toLocaleString("en-IN")}`),
                                           createElement('span', { className: "text-xs text-gray-500" }, `${r.paymentMethod || ''}${r.isAdvance ? ' (Advance)' : ''}`)
                                       )
                                   ),
@@ -400,20 +558,31 @@
     
     function Summary({ rentals }) {
       const stats = useMemo(() => {
-          const totalAmount = rentals.reduce((a, e) => a + (e.paidAmount || 0), 0);
-          return { totalAmount, totalShoots: rentals.length };
+          // Ensure that paidAmount and totalAmount are treated as numbers, defaulting to 0 if they are empty strings or undefined
+          const totalAmount = rentals.reduce((a, e) => a + (Number(e.paidAmount) || 0), 0);
+          const totalAdvanceAmount = rentals.reduce((a, e) => a + (e.isAdvance ? (Number(e.totalAmount) || 0) : 0), 0);
+          const totalBalanceAmount = rentals.reduce((a, e) => a + (e.isAdvance ? ((Number(e.totalAmount) || 0) - (Number(e.paidAmount) || 0)) : 0), 0);
+          return { totalAmount, totalShoots: rentals.length, totalAdvanceAmount, totalBalanceAmount };
       }, [rentals]);
 
       return createElement("div", null,
           createElement("h3", { className: "text-xl font-bold mb-4 text-white" }, "Monthly Summary"),
-          createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4 text-center" },
+          createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-center" },
               createElement("div", { className: "bg-gray-800/50 p-4 rounded-lg ring-1 ring-gray-700" },
-                  createElement("p", { className: "text-sm text-yellow-400 font-semibold" }, "Total Revenue"),
+                  createElement("p", { className: "text-sm text-yellow-400 font-semibold" }, "Total Revenue (Paid)"),
                   createElement("p", { className: "text-2xl font-bold text-white mt-1" }, `₹${stats.totalAmount.toLocaleString("en-IN")}`)
               ),
               createElement("div", { className: "bg-gray-800/50 p-4 rounded-lg ring-1 ring-gray-700" },
                   createElement("p", { className: "text-sm text-yellow-400 font-semibold" }, "Total Shoots"),
                   createElement("p", { className: "text-2xl font-bold text-white mt-1" }, stats.totalShoots)
+              ),
+              createElement("div", { className: "bg-gray-800/50 p-4 rounded-lg ring-1 ring-gray-700" },
+                  createElement("p", { className: "text-sm text-yellow-400 font-semibold" }, "Total Advance Booked"),
+                  createElement("p", { className: "text-2xl font-bold text-white mt-1" }, `₹${stats.totalAdvanceAmount.toLocaleString("en-IN")}`)
+              ),
+              createElement("div", { className: "bg-gray-800/50 p-4 rounded-lg ring-1 ring-700" },
+                  createElement("p", { className: "text-sm text-yellow-400 font-semibold" }, "Total Balance Due"),
+                  createElement("p", { className: "text-2xl font-bold text-white mt-1" }, `₹${stats.totalBalanceAmount.toLocaleString("en-IN")}`)
               )
           )
       );
@@ -442,11 +611,26 @@
               const arr = [];
               snapshot.forEach(child => {
                   const val = child.val();
-                  if (val) arr.push({ ...val, id: child.key, paidAmount: Number(val.paidAmount) || 0 });
+                  if (val) {
+                      // Adapt old data structure to new bookingSegments if necessary
+                      if (!val.bookingSegments && val.date && val.startTime && val.endTime) {
+                          val.bookingSegments = [{ date: val.date, startTime: val.startTime, endTime: val.endTime }];
+                      } else if (!val.bookingSegments) {
+                          val.bookingSegments = []; // Ensure it's an array even if empty
+                      }
+                      // Ensure paidAmount and totalAmount are numbers for display/calculations
+                      arr.push({ 
+                          ...val, 
+                          id: child.key, 
+                          paidAmount: Number(val.paidAmount) || 0, 
+                          totalAmount: Number(val.totalAmount) || 0 
+                      });
+                  }
               });
               const sorted = arr.sort((a,b) => {
-                  const valA = `${a.date || '0000-00-00'} ${a.startTime || '00:00'}`;
-                  const valB = `${b.date || '0000-00-00'} ${b.startTime || '00:00'}`;
+                  // Sort by the first booking segment's date and time
+                  const valA = a.bookingSegments && a.bookingSegments.length > 0 ? `${a.bookingSegments[0].date || '0000-00-00'} ${a.bookingSegments[0].startTime || '00:00'}` : '0000-00-00 00:00';
+                  const valB = b.bookingSegments && b.bookingSegments.length > 0 ? `${b.bookingSegments[0].date || '0000-00-00'} ${b.bookingSegments[0].startTime || '00:00'}` : '0000-00-00 00:00';
                   return valB.localeCompare(valA); // Sort descending by default
               });
               setBookings(sorted);
@@ -518,19 +702,25 @@
           const past = [];
 
           bookings.forEach(b => {
-              if (!b.date || !b.startTime || !b.endTime) {
+              // Use the first segment for date comparison if bookingSegments exists
+              const primarySegment = b.bookingSegments && b.bookingSegments.length > 0 ? b.bookingSegments[0] : {};
+              const bDate = primarySegment.date || b.date; // Fallback to old 'date' field
+              const bStartTime = primarySegment.startTime || b.startTime;
+              const bEndTime = primarySegment.endTime || b.endTime;
+
+              if (!bDate || !bStartTime || !bEndTime) {
                   past.push(b); // Put incomplete records in past
                   return; 
               }
-              const endDateTime = new Date(`${b.date}T${b.endTime}`);
-              const dateOnly = new Date(b.date);
+              const endDateTime = new Date(`${bDate}T${bEndTime}`);
+              const dateOnly = new Date(bDate);
               dateOnly.setHours(0,0,0,0);
               const todayDateOnly = new Date(todayStr);
               todayDateOnly.setHours(0,0,0,0);
 
               if (endDateTime < now) {
                   past.push(b);
-              } else if (b.date === todayStr) {
+              } else if (bDate === todayStr) {
                   todays.push(b);
               } else if (dateOnly > todayDateOnly) {
                   upcoming.push(b);
@@ -539,7 +729,11 @@
               }
           });
 
-          const ascSort = (a, b) => new Date(`${a.date}T${a.startTime}`) - new Date(`${b.date}T${b.startTime}`);
+          const ascSort = (a, b) => {
+              const dateA = a.bookingSegments && a.bookingSegments.length > 0 ? new Date(`${a.bookingSegments[0].date}T${a.bookingSegments[0].startTime}`) : new Date('0000-00-00T00:00');
+              const dateB = b.bookingSegments && b.bookingSegments.length > 0 ? new Date(`${b.bookingSegments[0].date}T${b.bookingSegments[0].startTime}`) : new Date('0000-00-00T00:00');
+              return dateA - dateB;
+          };
           upcoming.sort(ascSort);
           todays.sort(ascSort);
 
@@ -548,12 +742,12 @@
 
       const filteredUpcomingBookings = useMemo(() => {
           if (selectedMonth === "all") return upcomingBookings;
-          return upcomingBookings.filter(b => b.date && new Date(b.date).getMonth() + 1 === Number(selectedMonth));
+          return upcomingBookings.filter(b => b.bookingSegments && b.bookingSegments.length > 0 && new Date(b.bookingSegments[0].date).getMonth() + 1 === Number(selectedMonth));
       }, [upcomingBookings, selectedMonth]);
 
       const filteredPastBookings = useMemo(() => {
           if (selectedMonth === "all") return pastBookings;
-          return pastBookings.filter(b => b.date && new Date(b.date).getMonth() + 1 === Number(selectedMonth));
+          return pastBookings.filter(b => b.bookingSegments && b.bookingSegments.length > 0 && new Date(b.bookingSegments[0].date).getMonth() + 1 === Number(selectedMonth));
       }, [pastBookings, selectedMonth]);
 
       return createElement('div', { className: "container mx-auto p-4 md:p-8 max-w-7xl" },
