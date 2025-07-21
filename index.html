@@ -1,52 +1,29 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Possible Studio Rental Manager</title>
-  <link rel="icon" href="favicon.ico" />
+  <!-- Fixed: Replaced broken favicon link with an inline SVG to prevent console errors -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%23facc15'/></svg>" />
+
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Firebase v8 SDKs (compatible with the existing code syntax) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <!-- React and ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     body { font-family: 'Inter', sans-serif; }
     .form-section {
       transition: all 0.3s ease-in-out;
@@ -55,9 +32,44 @@
       opacity: 0;
     }
     .form-section.open {
-      max-height: 500px; /* Adjust as needed */
+      /* Increased max-height to accommodate content */
+      max-height: 1000px; 
       opacity: 1;
     }
+    /* Custom styling for the checkbox/radio buttons */
+    .checkbox-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.75rem 1.25rem;
+        border-radius: 0.5rem;
+        border: 1px solid;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+        font-weight: 500;
+        color: #d1d5db; /* gray-300 */
+        background-color: #1f2937; /* gray-800 */
+        border-color: #4b5563; /* gray-600 */
+        white-space: nowrap; /* Prevent text wrapping */
+    }
+    .checkbox-button:hover {
+        background-color: #374151; /* gray-700 */
+        border-color: #6b7280; /* gray-500 */
+    }
+    .checkbox-button.checked {
+        background-color: #facc15; /* yellow-400 */
+        color: #111827; /* gray-900 */
+        border-color: #facc15; /* yellow-400 */
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .checkbox-button input[type="checkbox"],
+    .checkbox-button input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
     @media print {
       body, main, .container {
         background: white !important; color: black !important; margin: 0 !important; padding: 0 !important; max-width: 100% !important; font-family: serif !important; font-size: 12pt !important;
@@ -78,27 +90,24 @@
       tr { page-break-inside: avoid; }
       div, p, h1, h2, h3, h4, h5, h6 { margin: 0 !important; padding: 0 !important; }
       h1, h2 { font-weight: bold !important; margin-bottom: 0.3em !important; }
-      /* New style to hide elements when printing */
       .hide-on-print {
         display: none !important;
       }
     }
   </style>
-
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
-<body class="bg-black text-white">
-  <div id="root"></div>
+<body class="bg-gray-900 text-gray-200">
+  <main id="root" class="p-4"></main>
 
-  <script>
-    const { useState, useEffect, useMemo, createElement, Fragment } = React;
+  <script type="module">
+    // React and ReactDOM are loaded from script tags, so we get them from the window
+    const { useState, useEffect, useMemo, createElement, Fragment } = window.React;
     const ReactDOM = window.ReactDOM;
-    
-    // Firebase config
+
+    // Firebase is loaded globally via script tags, access it via window.firebase
+    const firebase = window.firebase; 
+
+    // --- Firebase Configuration ---
     const firebaseConfig = {
       apiKey: "AIzaSyAIHIVv6dJ0LlNqP_0qkYNok7xsbxHgdRY",
       authDomain: "studio-space-rental-database.firebaseapp.com",
@@ -110,13 +119,13 @@
       measurementId: "G-NWZ18H2CVT"
     };
 
-    // Initialize Firebase using the global 'firebase' object
+    // --- Firebase Initialization ---
     const app = firebase.initializeApp(firebaseConfig);
-    const database = firebase.database(); // Get database instance from the app
-    const rentalsRef = database.ref('rentals'); // Reference to the 'rentals' collection
-    const rentalsQuery = rentalsRef.orderByChild('date'); // Query ordered by date
+    const database = firebase.database();
+    const rentalsRef = database.ref('rentals');
+    const rentalsQuery = rentalsRef.orderByChild('timestamp'); // Order by timestamp for consistent sorting
 
-    // Helpers
+    // --- Helper Functions ---
     function getTodayDateString() {
       const today = new Date();
       const offset = today.getTimezoneOffset();
@@ -130,22 +139,14 @@
         return date.toISOString().split('T')[0];
     }
 
-    // Helper function for DD-MM-YYYY format (kept for potential other uses, though not directly used in table anymore)
-    function formatDateToDDMMYYYY(dateString) {
-        if (!dateString) return '';
-        const [year, month, day] = dateString.split('-');
-        return `${day}-${month}-${year}`;
-    }
-
-    // New helper function for Month Day format (e.g., JUL 19)
     function formatDateToMonthDay(dateString) {
         if (!dateString) return '';
         const date = new Date(dateString);
-        const options = { month: 'short', day: 'numeric' };
+        // Add timeZone to ensure the date isn't shifted due to UTC conversion
+        const options = { month: 'short', day: 'numeric', timeZone: 'UTC' };
         return date.toLocaleDateString('en-US', options).toUpperCase();
     }
 
-    // New helper function for 12-hour time format (e.g., 6:00 PM)
     function formatTimeTo12Hour(timeString) {
         if (!timeString) return '';
         const [hours, minutes] = timeString.split(':');
@@ -154,13 +155,14 @@
         const options = { hour: 'numeric', minute: '2-digit', hour12: true };
         return date.toLocaleTimeString('en-US', options);
     }
-
-    // Constants:
+    
+    // --- Constants ---
     const ADMIN_PASSWORD = "1122";
     const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const PAYMENT_METHODS = ['UPI', 'Cash', 'Cards'];
 
-    // Components
+    // --- React Components ---
+
     function LoadingSpinner() {
       return createElement('div', { className: "flex flex-col items-center justify-center gap-2" },
         createElement('div', { className: "w-12 h-12 rounded-full animate-spin border-4 border-solid border-yellow-400 border-t-transparent", role: "status", "aria-label": "loading" }),
@@ -173,10 +175,12 @@
       const [error, setError] = useState('');
       useEffect(() => { setPassword(''); setError(''); }, [isOpen]);
       if (!isOpen) return null;
+      
       function handleSubmit(e) {
         e.preventDefault();
         if (!onLogin(password)) { setError('Invalid password. Please try again.'); setPassword(''); }
       }
+
       return createElement('div', { className: "fixed inset-0 bg-black/70 flex items-center justify-center z-50", onClick: onClose },
         createElement('div', { className: "bg-gray-900 p-8 rounded-xl shadow-lg ring-1 ring-yellow-400/50 w-full max-w-sm m-4", onClick: e => e.stopPropagation() },
           createElement('h2', { className: "text-2xl font-bold text-white mb-4" }, "Admin Login"),
@@ -188,80 +192,136 @@
         )
       );
     }
-    
+
+    function ConfirmModal({ isOpen, onClose, onConfirm, title, message }) {
+        if (!isOpen) return null;
+
+        return createElement('div', { className: "fixed inset-0 bg-black/70 flex items-center justify-center z-50", onClick: onClose },
+            createElement('div', { className: "bg-gray-900 p-8 rounded-xl shadow-lg ring-1 ring-red-500/50 w-full max-w-md m-4", onClick: e => e.stopPropagation() },
+                createElement('h2', { className: "text-2xl font-bold text-white mb-4" }, title),
+                createElement('p', { className: "text-gray-300 mb-6" }, message),
+                createElement('div', { className: "flex justify-end gap-4" },
+                    createElement('button', { onClick: onClose, className: "px-4 py-2 rounded-md bg-gray-600 hover:bg-gray-500 transition-colors" }, "Cancel"),
+                    createElement('button', { onClick: onConfirm, className: "px-4 py-2 rounded-md bg-red-600 text-white font-bold hover:bg-red-700 transition-colors" }, "Confirm Delete")
+                )
+            )
+        );
+    }
+
     function RentalForm({ rentalToEdit, onSubmitSuccess, onCancel }) {
-      const initialFormData = {
+      const getInitialFormData = () => ({
           clientName: '',
-          bookingSegments: [{ date: getTodayDateString(), startTime: '10:00', endTime: '18:00' }], // Array for multiple dates
-          isOutside: false,
+          bookingSegments: [{ date: getTodayDateString(), startTime: '10:00', endTime: '18:00' }],
+          bookingType: 'spaceRental',
           location: '',
           withEquipment: false,
           hasCamera: false,
           cameras: 1,
           mic: false,
+          micType: [],
           lights: false,
           note: '',
-          paidAmount: 0,
+          paidAmount: '',
           isAdvance: false,
-          totalAmount: 0, // New field for total amount
+          totalAmount: '',
           paymentMethod: 'UPI',
-          isInHouseClient: false, // New field for in-house client
-      };
+          withEditing: false,
+          editPaymentAmount: '',
+          editPaymentMethod: 'UPI',
+      });
 
-      const [formData, setFormData] = useState(rentalToEdit ? { 
-          ...initialFormData, 
-          ...rentalToEdit,
-          // Ensure bookingSegments is an array, even if loaded as single date/time
-          bookingSegments: rentalToEdit.bookingSegments || [{ date: rentalToEdit.date, startTime: rentalToEdit.startTime, endTime: rentalToEdit.endTime }].filter(s => s.date)
-      } : initialFormData);
+      const [formData, setFormData] = useState(getInitialFormData);
       const [isSubmitting, setIsSubmitting] = useState(false);
       const [error, setError] = useState('');
 
       useEffect(() => {
           if (rentalToEdit) {
-              setFormData({ 
-                  ...initialFormData, 
-                  ...rentalToEdit,
-                  bookingSegments: rentalToEdit.bookingSegments || [{ date: rentalToEdit.date, startTime: rentalToEdit.startTime, endTime: rentalToEdit.endTime }].filter(s => s.date)
+              const formatAmount = (amount) => (amount === 0 || amount === null || amount === undefined) ? '' : amount;
+              
+              let bookingType = 'spaceRental';
+              if (rentalToEdit.isPossibleStudioShoot) bookingType = 'possibleStudio';
+              else if (rentalToEdit.isInHouseClient) bookingType = 'inHouse';
+              else if (rentalToEdit.isOutside) bookingType = 'outside';
+
+              setFormData({
+                  clientName: rentalToEdit.clientName || '',
+                  bookingSegments: (rentalToEdit.bookingSegments && rentalToEdit.bookingSegments.length > 0) 
+                      ? rentalToEdit.bookingSegments 
+                      : [{ date: rentalToEdit.date, startTime: rentalToEdit.startTime, endTime: rentalToEdit.endTime }].filter(s => s.date),
+                  bookingType: bookingType,
+                  location: rentalToEdit.location || '',
+                  withEquipment: rentalToEdit.withEquipment || false,
+                  hasCamera: rentalToEdit.hasCamera || false,
+                  cameras: rentalToEdit.cameras || 1,
+                  mic: rentalToEdit.mic || false,
+                  micType: rentalToEdit.micType || [],
+                  lights: rentalToEdit.lights || false,
+                  note: rentalToEdit.note || '',
+                  paidAmount: formatAmount(rentalToEdit.paidAmount),
+                  isAdvance: rentalToEdit.isAdvance || false,
+                  totalAmount: formatAmount(rentalToEdit.totalAmount),
+                  paymentMethod: rentalToEdit.paymentMethod || 'UPI',
+                  withEditing: rentalToEdit.withEditing || false,
+                  editPaymentAmount: formatAmount(rentalToEdit.editPaymentAmount),
+                  editPaymentMethod: rentalToEdit.editPaymentMethod || 'UPI',
               });
+          } else {
+              setFormData(getInitialFormData());
           }
-          else setFormData(initialFormData);
           setError('');
       }, [rentalToEdit]);
 
       function handleChange(e) {
-          const { name, value, type, checked } = e.target;
-          const val = type === 'checkbox' ? checked : value;
+        const { name, value, type, checked } = e.target;
+        const val = type === 'checkbox' ? checked : value;
 
-          setFormData(fd => {
-              const newFd = { ...fd, [name]: val };
-              if (name === 'isOutside' && !checked) newFd.location = '';
-              if (name === 'withEquipment' && !checked) {
-                  newFd.hasCamera = false;
-                  newFd.cameras = 1;
-                  newFd.mic = false;
-                  newFd.lights = false;
-              }
-              if (name === 'hasCamera' && !checked) {
-                  newFd.cameras = 1;
-              }
-              if (name === 'isAdvance' && !checked) {
-                  newFd.totalAmount = 0; // Reset total amount if advance is unchecked
-              }
-              // If "InHouse Client" is checked, remove end time and payment details
-              if (name === 'isInHouseClient' && checked) {
-                  const updatedSegments = newFd.bookingSegments.map(segment => ({
-                      ...segment,
-                      endTime: '' // Clear end time
-                  }));
-                  newFd.bookingSegments = updatedSegments;
-                  newFd.paidAmount = 0;
-                  newFd.isAdvance = false;
-                  newFd.totalAmount = 0;
-                  newFd.paymentMethod = 'UPI';
-              }
-              return newFd;
-          });
+        setFormData(fd => {
+            let newFd = { ...fd };
+
+            if (name === 'micType') {
+                const currentMicTypes = newFd.micType || [];
+                if (checked) {
+                    newFd.micType = [...currentMicTypes, value];
+                } else {
+                    newFd.micType = currentMicTypes.filter(type => type !== value);
+                }
+            } else if (name === 'bookingType') {
+                newFd.bookingType = value;
+                if (value !== 'outside') {
+                    newFd.location = '';
+                }
+            } else {
+                newFd[name] = val;
+            }
+
+            if (name === 'withEquipment' && !checked) {
+                newFd = { ...newFd, hasCamera: false, cameras: 1, mic: false, micType: [], lights: false };
+            }
+            if (name === 'hasCamera' && !checked) newFd.cameras = 1;
+            if (name === 'mic' && !checked) newFd.micType = [];
+            if (name === 'isAdvance' && !checked) {
+                newFd = { ...newFd, paidAmount: '', totalAmount: '' };
+            }
+            if (name === 'withEditing' && !checked) {
+                newFd = { ...newFd, editPaymentAmount: '', editPaymentMethod: 'UPI' };
+            }
+
+            const applyInHouseRules = newFd.bookingType === 'inHouse' || newFd.bookingType === 'possibleStudio';
+            if (applyInHouseRules) {
+                newFd = {
+                    ...newFd,
+                    paidAmount: '',
+                    isAdvance: false,
+                    totalAmount: '',
+                    paymentMethod: 'UPI',
+                    withEditing: false,
+                    editPaymentAmount: '',
+                    bookingSegments: newFd.bookingSegments.map(segment => ({ ...segment, endTime: '' }))
+                };
+            }
+            
+            return newFd;
+        });
       }
 
       function handleSegmentChange(index, field, value) {
@@ -284,96 +344,73 @@
       function handleRemoveSegment(index) {
           setFormData(fd => {
               const newSegments = fd.bookingSegments.filter((_, i) => i !== index);
-              return { ...fd, bookingSegments: newSegments.length > 0 ? newSegments : [{ date: getTodayDateString(), startTime: '10:00', endTime: '18:00' }] };
+              return { ...fd, bookingSegments: newSegments.length > 0 ? newSegments : [getInitialFormData().bookingSegments[0]] };
           });
       }
 
       async function handleSubmit(e) {
-          e.preventDefault();
-          setError('');
+        e.preventDefault();
+        setError('');
 
-          if (!formData.clientName) {
-              setError("Client Name is required.");
-              return;
-          }
+        if (!formData.clientName) return setError("Client Name is required.");
+        if (formData.bookingType === 'outside' && !formData.location) return setError("Location is required for outside shoots.");
+        
+        const isSpecialBooking = formData.bookingType === 'inHouse' || formData.bookingType === 'possibleStudio';
+        for (const segment of formData.bookingSegments) {
+            if (!segment.date || !segment.startTime) return setError("Date and Start Time are required for all booking segments.");
+            if (!isSpecialBooking && !segment.endTime) return setError("End Time is required unless it's an 'InHouse' or 'Possible Studio' shoot.");
+            if (!isSpecialBooking && segment.startTime >= segment.endTime) return setError("End Time must be after Start Time.");
+        }
+        
+        if (formData.hasCamera && (formData.cameras < 1 || isNaN(formData.cameras))) return setError("Number of cameras must be at least 1.");
+        if (formData.mic && formData.micType.length === 0) return setError("Please select at least one Mic type.");
 
-          if (formData.isOutside && !formData.location) {
-              setError("Location is required for outside shoots.");
-              return;
-          }
+        if (!isSpecialBooking) {
+            if (formData.isAdvance && (formData.totalAmount === '' || Number(formData.totalAmount) <= 0)) return setError("Total Amount must be greater than 0 for advance payments.");
+            if (formData.isAdvance && Number(formData.paidAmount) > Number(formData.totalAmount)) return setError("Paid Amount cannot be greater than Total Amount.");
+        }
 
-          // Validate all booking segments
-          for (const segment of formData.bookingSegments) {
-              if (!segment.date || !segment.startTime) {
-                  setError("All date and start time fields are required for each booking segment.");
-                  return;
-              }
-              // Only validate end time if it's not an in-house client
-              if (!formData.isInHouseClient && !segment.endTime) {
-                  setError("End time is required for all booking segments (unless 'InHouse Client' is checked).");
-                  return;
-              }
-              if (!formData.isInHouseClient && segment.startTime >= segment.endTime) {
-                  setError("End time must be after start time for all booking segments.");
-                  return;
-              }
-          }
-          
-          if (formData.hasCamera && (formData.cameras < 1 || isNaN(formData.cameras))) {
-              setError("Number of cameras must be at least 1 when 'Camera' is selected.");
-              return;
-          }
+        setIsSubmitting(true);
+        try {
+            const dataToSave = { 
+                ...formData,
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                paidAmount: Number(formData.paidAmount) || 0,
+                totalAmount: Number(formData.totalAmount) || 0,
+                editPaymentAmount: Number(formData.editPaymentAmount) || 0,
+                cameras: formData.hasCamera ? (Number(formData.cameras) || 1) : 0,
+                isPossibleStudioShoot: formData.bookingType === 'possibleStudio',
+                isInHouseClient: formData.bookingType === 'inHouse',
+                isOutside: formData.bookingType === 'outside',
+            };
+            
+            delete dataToSave.date;
+            delete dataToSave.startTime;
+            delete dataToSave.endTime;
+            delete dataToSave.bookingType;
 
-          // Payment validation only if not an in-house client
-          if (!formData.isInHouseClient) {
-              if (formData.isAdvance && formData.totalAmount <= 0) {
-                  setError("Total Amount must be greater than 0 for advance payments.");
-                  return;
-              }
-              if (formData.isAdvance && formData.paidAmount > formData.totalAmount) {
-                  setError("Paid Amount cannot be greater than Total Amount for advance payments.");
-                  return;
-              }
-          }
+            if (isSpecialBooking) {
+                dataToSave.paidAmount = 0;
+                dataToSave.isAdvance = false;
+                dataToSave.totalAmount = 0;
+                dataToSave.paymentMethod = 'UPI';
+                dataToSave.withEditing = false;
+                dataToSave.editPaymentAmount = 0;
+                dataToSave.bookingSegments = dataToSave.bookingSegments.map(segment => ({ ...segment, endTime: '' }));
+            }
 
-
-          setIsSubmitting(true);
-          try {
-              const dataToSave = { ...formData, timestamp: Date.now() };
-              // Ensure cameras is only saved if hasCamera is true, otherwise set to 0
-              if (!formData.hasCamera) {
-                  dataToSave.cameras = 0;
-              }
-              // Clean up single date/time fields if bookingSegments is used
-              delete dataToSave.date;
-              delete dataToSave.startTime;
-              delete dataToSave.endTime;
-
-              // If in-house client, ensure payment fields are cleared/defaulted
-              if (formData.isInHouseClient) {
-                  dataToSave.paidAmount = 0;
-                  dataToSave.isAdvance = false;
-                  dataToSave.totalAmount = 0;
-                  dataToSave.paymentMethod = 'UPI';
-                  // Also clear endTime from segments for in-house clients
-                  dataToSave.bookingSegments = dataToSave.bookingSegments.map(segment => ({
-                      ...segment,
-                      endTime: ''
-                  }));
-              }
-
-              if (rentalToEdit && rentalToEdit.id) {
-                  await rentalsRef.child(rentalToEdit.id).update(dataToSave);
-              } else {
-                  await rentalsRef.push(dataToSave);
-              }
-              onSubmitSuccess(rentalToEdit ? "Booking updated successfully" : "Booking added successfully");
-          } catch (err) {
-              setError("Error saving data to Firebase.");
-              console.error(err);
-          } finally {
-              setIsSubmitting(false);
-          }
+            if (rentalToEdit && rentalToEdit.id) {
+                await rentalsRef.child(rentalToEdit.id).update(dataToSave);
+            } else {
+                await rentalsRef.push(dataToSave);
+            }
+            onSubmitSuccess(rentalToEdit ? "Booking updated successfully" : "Booking added successfully");
+        } catch (err) {
+            setError("Error saving data. Please check your connection and try again.");
+            console.error("Firebase save error:", err);
+        } finally {
+            setIsSubmitting(false);
+        }
       }
       
       const isEditing = !!(rentalToEdit && rentalToEdit.id);
@@ -381,323 +418,320 @@
       const labelClasses = "block text-sm font-medium text-gray-300 mb-1";
       const checkboxLabelClasses = "flex items-center space-x-3 text-white cursor-pointer";
       const checkboxClasses = "h-5 w-5 rounded bg-gray-700 border-gray-500 text-yellow-400 focus:ring-yellow-400 cursor-pointer";
-
-      const balanceAmount = formData.isAdvance ? (formData.totalAmount - formData.paidAmount) : 0;
+      const balanceAmount = formData.isAdvance ? (Number(formData.totalAmount) || 0) - (Number(formData.paidAmount) || 0) : 0;
+      const applyInHouseRules = formData.bookingType === 'inHouse' || formData.bookingType === 'possibleStudio';
 
       return createElement('div', { className: "bg-gray-900 p-6 md:p-8 rounded-xl shadow-lg ring-1 ring-gray-800 print:hidden mb-8" },
-          createElement('h2', { className: "text-2xl font-bold mb-6 text-yellow-400" }, isEditing ? "Edit Booking" : "New Studio Booking"),
-          error && createElement('div', { className: "bg-red-900/50 px-4 py-3 rounded mb-4 text-red-300" }, error),
-          createElement('form', { onSubmit: handleSubmit, className: "space-y-4" },
-              // InHouse Client checkbox
-              createElement('div', { className: "p-3 bg-gray-800/50 rounded-lg border border-gray-700" },
-                  createElement('label', { className: checkboxLabelClasses },
-                      createElement('input', { type: "checkbox", name: "isInHouseClient", className: checkboxClasses, checked: formData.isInHouseClient, onChange: handleChange }),
-                      createElement('span', null, "InHouse Client")
-                  )
-              ),
-              // Outside the Studio checkbox
-              createElement('div', { className: "p-3 bg-gray-800/50 rounded-lg border border-gray-700" },
-                createElement('label', { className: checkboxLabelClasses },
-                  createElement('input', { type: "checkbox", name: "isOutside", className: checkboxClasses, checked: formData.isOutside, onChange: handleChange }),
-                  createElement('span', null, "Outside the Studio")
+        createElement('h2', { className: "text-2xl font-bold mb-6 text-yellow-400" }, isEditing ? "Edit Booking" : "New Studio Booking"),
+        error && createElement('div', { className: "bg-red-900/50 px-4 py-3 rounded mb-4 text-red-300" }, error),
+        createElement('form', { onSubmit: handleSubmit, className: "space-y-4" },
+          createElement('div', { className: "flex flex-wrap gap-3 mb-4" },
+            createElement('label', { className: `checkbox-button ${formData.bookingType === 'spaceRental' ? 'checked' : ''}` },
+              createElement('input', { type: "radio", name: "bookingType", value: "spaceRental", checked: formData.bookingType === 'spaceRental', onChange: handleChange }),
+              createElement('span', null, "Space Rental")
+            ),
+            createElement('label', { className: `checkbox-button ${formData.bookingType === 'possibleStudio' ? 'checked' : ''}` },
+              createElement('input', { type: "radio", name: "bookingType", value: "possibleStudio", checked: formData.bookingType === 'possibleStudio', onChange: handleChange }),
+              createElement('span', null, "Possible Studio Shoot")
+            ),
+            createElement('label', { className: `checkbox-button ${formData.bookingType === 'inHouse' ? 'checked' : ''}` },
+              createElement('input', { type: "radio", name: "bookingType", value: "inHouse", checked: formData.bookingType === 'inHouse', onChange: handleChange }),
+              createElement('span', null, "InHouse Client")
+            ),
+            createElement('label', { className: `checkbox-button ${formData.bookingType === 'outside' ? 'checked' : ''}` },
+              createElement('input', { type: "radio", name: "bookingType", value: "outside", checked: formData.bookingType === 'outside', onChange: handleChange }),
+              createElement('span', null, "Outside the Studio")
+            )
+          ),
+          
+          createElement('div', { className: `form-section ${formData.bookingType === 'outside' ? 'open' : ''}` },
+            createElement('div', { className: "p-3 bg-gray-800/50 rounded-lg border border-gray-700 mt-4" },
+              createElement('label', { htmlFor: "location", className: labelClasses }, "Location"),
+              createElement('input', { id: "location", name: "location", type: "text", className: inputClasses, value: formData.location, onChange: handleChange, placeholder: "e.g., Downtown Park" })
+            )
+          ),
+
+          createElement('div', null,
+            createElement('label', { htmlFor: "clientName", className: labelClasses }, "Client Name"),
+            createElement('input', { id: "clientName", name: "clientName", type: "text", className: inputClasses, value: formData.clientName, onChange: handleChange, required: true, placeholder: "John Doe" })
+          ),
+
+          createElement('div', { className: "p-3 bg-gray-800/50 rounded-lg border border-gray-700 space-y-4" },
+            createElement('h3', { className: "text-lg font-semibold text-gray-200" }, "Booking Dates & Times"),
+            formData.bookingSegments.map((segment, index) => (
+              createElement('div', { key: index, className: "grid grid-cols-1 md:grid-cols-3 gap-4 items-end border-t border-gray-700 pt-4 first:border-t-0 first:pt-0" },
+                createElement('div', null,
+                  createElement('label', { htmlFor: `date-${index}`, className: labelClasses }, `Date ${index + 1}`),
+                  createElement('input', { id: `date-${index}`, name: `date-${index}`, type: "date", className: inputClasses, value: segment.date, onChange: (e) => handleSegmentChange(index, 'date', e.target.value), required: true })
                 ),
-                createElement('div', { className: `form-section ${formData.isOutside ? 'open' : ''}` },
-                  createElement('div', { className: "mt-3" },
-                      createElement('label', { htmlFor: "location", className: labelClasses }, "Location"),
-                      createElement('input', { id: "location", name: "location", type: "text", className: inputClasses, value: formData.location, onChange: handleChange, placeholder: "e.g., Downtown Park" })
+                createElement('div', null,
+                  createElement('label', { htmlFor: `startTime-${index}`, className: labelClasses }, `Start Time ${index + 1}`),
+                  createElement('input', { id: `startTime-${index}`, name: `startTime-${index}`, type: "time", className: inputClasses, value: segment.startTime, onChange: (e) => handleSegmentChange(index, 'startTime', e.target.value), required: true })
+                ),
+                createElement('div', { className: "flex items-center gap-2" },
+                    !applyInHouseRules && createElement('div', { className: "flex-grow" },
+                        createElement('label', { htmlFor: `endTime-${index}`, className: labelClasses }, `End Time ${index + 1}`),
+                        createElement('input', { id: `endTime-${index}`, name: `endTime-${index}`, type: "time", className: inputClasses, value: segment.endTime, onChange: (e) => handleSegmentChange(index, 'endTime', e.target.value), required: !applyInHouseRules })
+                    ),
+                    index > 0 && createElement('button', { type: "button", onClick: () => handleRemoveSegment(index), className: "p-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors" }, 
+                        createElement('svg', {xmlns:"http://www.w3.org/2000/svg", fill:"none", viewBox:"0 0 24 24", strokeWidth:"1.5", stroke:"currentColor", className:"w-5 h-5"},
+                            createElement('path', {strokeLinecap:"round", strokeLinejoin:"round", d:"M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.925a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.166m7.452-1.044L12 12m0 0l-1.125-1.5M12 12l1.125-1.5m-1.125 1.5L12 12m-2.25 4.5h4.5"})
+                        )
+                    )
+                )
+              )
+            )),
+            createElement('button', { type: "button", onClick: handleAddNextDate, className: "mt-4 w-full bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors flex items-center justify-center gap-2" },
+              createElement('svg', {xmlns:"http://www.w3.org/2000/svg", fill:"none", viewBox:"0 0 24 24", strokeWidth:2, stroke:"currentColor", className:"w-5 h-5"}, createElement('path', {strokeLinecap:"round", strokeLinejoin:"round", d:"M12 4.5v15m7.5-7.5h-15"})),
+              "Add Next Shoot"
+            )
+          ),
+
+          createElement('div', { className: "p-3 bg-gray-800/50 rounded-lg border border-gray-700" },
+            createElement('div', { className: "flex flex-wrap gap-4" },
+              createElement('label', { className: checkboxLabelClasses },
+                createElement('input', { type: "checkbox", name: "withEquipment", className: checkboxClasses, checked: formData.withEquipment, onChange: handleChange }),
+                createElement('span', null, "With Equipment")
+              ),
+              !applyInHouseRules && createElement('label', { className: checkboxLabelClasses },
+                createElement('input', { type: "checkbox", name: "withEditing", className: checkboxClasses, checked: formData.withEditing, onChange: handleChange }),
+                createElement('span', null, "With Editing")
+              )
+            ),
+            createElement('div', { className: `pl-4 ml-2 border-l-2 border-yellow-400/50 form-section ${formData.withEquipment ? 'open' : ''}` },
+              createElement('div', { className: "mt-4 space-y-4" },
+                createElement('div', null,
+                  createElement('label', { className: checkboxLabelClasses },
+                    createElement('input', { type: "checkbox", name: "hasCamera", className: checkboxClasses, checked: formData.hasCamera, onChange: handleChange }),
+                    createElement('span', null, "Camera")
+                  )
+                ),
+                formData.hasCamera && createElement('div', null,
+                  createElement('label', { htmlFor: "cameras", className: labelClasses }, "No. of Cameras"),
+                  createElement('input', { id: "cameras", name: "cameras", type: "number", min: "1", className: inputClasses, value: formData.cameras, onChange: handleChange })
+                ),
+                createElement('div', null,
+                  createElement('label', { className: checkboxLabelClasses },
+                    createElement('input', { type: "checkbox", name: "mic", className: checkboxClasses, checked: formData.mic, onChange: handleChange }),
+                    createElement('span', null, "Mic")
+                  )
+                ),
+                formData.mic && createElement('div', { className: "mt-2 ml-6 space-y-2" },
+                  createElement('label', { className: checkboxLabelClasses },
+                    createElement('input', { type: "checkbox", name: "micType", value: "SHURE", className: checkboxClasses, checked: formData.micType.includes("SHURE"), onChange: handleChange }),
+                    createElement('span', null, "SHURE")
+                  ),
+                  createElement('label', { className: checkboxLabelClasses },
+                    createElement('input', { type: "checkbox", name: "micType", value: "DJI wireless", className: checkboxClasses, checked: formData.micType.includes("DJI wireless"), onChange: handleChange }),
+                    createElement('span', null, "DJI wireless")
+                  )
+                ),
+                createElement('div', null,
+                  createElement('label', { className: checkboxLabelClasses },
+                    createElement('input', { type: "checkbox", name: "lights", className: checkboxClasses, checked: formData.lights, onChange: handleChange }),
+                    createElement('span', null, "Lights")
                   )
                 )
-              ),
-              createElement('div', null,
-                  createElement('label', { htmlFor: "clientName", className: labelClasses }, "Client Name"),
-                  createElement('input', { id: "clientName", name: "clientName", type: "text", className: inputClasses, value: formData.clientName, onChange: handleChange, required: true, placeholder: "John Doe" })
-              ),
-
-              // Booking Segments (Dates and Times)
-              createElement('div', { className: "p-3 bg-gray-800/50 rounded-lg border border-gray-700 space-y-4" },
-                  createElement('h3', { className: "text-lg font-semibold text-gray-200" }, "Booking Dates & Times"),
-                  formData.bookingSegments.map((segment, index) => (
-                      createElement('div', { key: index, className: "grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-gray-700 pt-4 first:border-t-0 first:pt-0" },
-                          createElement('div', null,
-                              createElement('label', { htmlFor: `date-${index}`, className: labelClasses }, `Date ${index + 1}`),
-                              createElement('input', { 
-                                  id: `date-${index}`, 
-                                  name: `date-${index}`, 
-                                  type: "date", 
-                                  className: inputClasses, 
-                                  value: segment.date, 
-                                  onChange: (e) => handleSegmentChange(index, 'date', e.target.value), 
-                                  required: true 
-                              })
-                          ),
-                          createElement('div', null,
-                              createElement('label', { htmlFor: `startTime-${index}`, className: labelClasses }, `Start Time ${index + 1}`),
-                              createElement('input', { 
-                                  id: `startTime-${index}`, 
-                                  name: `startTime-${index}`, 
-                                  type: "time", 
-                                  className: inputClasses, 
-                                  value: segment.startTime, 
-                                  onChange: (e) => handleSegmentChange(index, 'startTime', e.target.value), 
-                                  required: true 
-                              })
-                          ),
-                          // Conditionally render End Time
-                          !formData.isInHouseClient && createElement('div', { className: "flex items-end gap-2" },
-                              createElement('div', { className: "flex-grow" },
-                                  createElement('label', { htmlFor: `endTime-${index}`, className: labelClasses }, `End Time ${index + 1}`),
-                                  createElement('input', { 
-                                      id: `endTime-${index}`, 
-                                      name: `endTime-${index}`, 
-                                      type: "time", 
-                                      className: inputClasses, 
-                                      value: segment.endTime, 
-                                      onChange: (e) => handleSegmentChange(index, 'endTime', e.target.value), 
-                                      required: true 
-                                  })
-                              ),
-                              index > 0 && createElement('button', { 
-                                  type: "button", 
-                                  onClick: () => handleRemoveSegment(index), 
-                                  className: "p-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors self-center" 
-                              }, 
-                                  createElement('svg', {xmlns:"http://www.w3.org/2000/svg", fill:"none", viewBox:"0 0 24 24", strokeWidth:"1.5", stroke:"currentColor", className:"w-5 h-5"},
-                                      createElement('path', {strokeLinecap:"round", strokeLinejoin:"round", d:"M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.925a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.166m-1.022.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.925a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.166m7.452-10.45L12 12m-2.25-4.5h4.5m-1.125 0h-2.25"})
-                                  )
-                              )
-                          ),
-                          // If in-house client, only show remove button if multiple segments
-                          formData.isInHouseClient && index > 0 && createElement('div', { className: "flex items-end gap-2" },
-                              createElement('button', { 
-                                  type: "button", 
-                                  onClick: () => handleRemoveSegment(index), 
-                                  className: "p-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors self-center" 
-                              }, 
-                                  createElement('svg', {xmlns:"http://www.w3.org/2000/svg", fill:"none", viewBox:"0 0 24 24", strokeWidth:"1.5", stroke:"currentColor", className:"w-5 h-5"},
-                                      createElement('path', {strokeLinecap:"round", strokeLinejoin:"round", d:"M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.925a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.166m-1.022.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.925a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.166m7.452-10.45L12 12m-2.25-4.5h4.5m-1.125 0h-2.25"})
-                                  )
-                              )
-                          )
-                      )
-                  )),
-                  createElement('button', { type: "button", onClick: handleAddNextDate, className: "mt-4 w-full bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors flex items-center justify-center gap-2" },
-                      createElement('svg', {xmlns:"http://www.w3.org/2000/svg", fill:"none", viewBox:"0 0 24 24", strokeWidth:2, stroke:"currentColor", className:"w-5 h-5"}, createElement('path', {strokeLinecap:"round", strokeLinejoin:"round", d:"M12 4.5v15m7.5-7.5h-15"})),
-                      "Add Next Date"
-                  )
-              ),
-
-              createElement('div', { className: "p-3 bg-gray-800/50 rounded-lg border border-gray-700" },
-                  createElement('label', { className: checkboxLabelClasses },
-                      createElement('input', { type: "checkbox", name: "withEquipment", className: checkboxClasses, checked: formData.withEquipment, onChange: handleChange }),
-                      createElement('span', null, "With Equipment")
-                  ),
-                  createElement('div', { className: `pl-2 ml-2 border-l-2 border-yellow-400/50 form-section ${formData.withEquipment ? 'open' : ''}` },
-                    createElement('div', { className: "mt-4 space-y-4" },
-                      // Camera checkbox
-                      createElement('div', null,
-                          createElement('label', { className: checkboxLabelClasses },
-                              createElement('input', { type: "checkbox", name: "hasCamera", className: checkboxClasses, checked: formData.hasCamera, onChange: handleChange }),
-                              createElement('span', null, "Camera")
-                          )
-                      ),
-                      // Conditional rendering for No. of Cameras
-                      formData.hasCamera && createElement('div', null,
-                          createElement('label', { htmlFor: "cameras", className: labelClasses }, "No. of Cameras"),
-                          createElement('input', { id: "cameras", name: "cameras", type: "number", min: "1", className: inputClasses, value: formData.cameras, onChange: handleChange })
-                      ),
-                      // Mic as a checkbox
-                      createElement('div', null,
-                          createElement('label', { className: checkboxLabelClasses },
-                              createElement('input', { type: "checkbox", name: "mic", className: checkboxClasses, checked: formData.mic, onChange: handleChange }),
-                              createElement('span', null, "Mic")
-                          )
-                      ),
-                      createElement('div', null,
-                          createElement('label', { className: checkboxLabelClasses },
-                              createElement('input', { type: "checkbox", name: "lights", className: checkboxClasses, checked: formData.lights, onChange: handleChange }),
-                              createElement('span', null, "Lights")
-                          )
-                      )
-                    )
-                  )
-              ),
-              // Conditionally render Payment section
-              !formData.isInHouseClient && createElement('div', { className: "p-3 bg-gray-800/50 rounded-lg border border-gray-700 space-y-4" },
-                  createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
-                      createElement('div', null,
-                          createElement('label', { htmlFor: "paidAmount", className: labelClasses }, "Paid Amount (₹)"),
-                          createElement('input', { id: "paidAmount", name: "paidAmount", type: "number", step: "0.01", min: "0", className: inputClasses, value: formData.paidAmount, onChange: handleChange, placeholder: "e.g., 5000" })
-                      ),
-                      createElement('div', null,
-                          createElement('label', { htmlFor: "paymentMethod", className: labelClasses }, "Payment Method"),
-                          createElement('select', { id: "paymentMethod", name: "paymentMethod", className: inputClasses, value: formData.paymentMethod, onChange: handleChange },
-                              PAYMENT_METHODS.map(m => createElement('option', { key: m, value: m }, m))
-                          )
-                      )
-                  ),
-                   createElement('div', null,
-                      createElement('label', { className: checkboxLabelClasses },
-                          createElement('input', { type: "checkbox", name: "isAdvance", className: checkboxClasses, checked: formData.isAdvance, onChange: handleChange }),
-                          createElement('span', null, "This is an advance payment")
-                      )
-                  ),
-                  formData.isAdvance && createElement('div', { className: "mt-4" },
-                      createElement('label', { htmlFor: "totalAmount", className: labelClasses }, "Total Amount (₹)"),
-                      createElement('input', { id: "totalAmount", name: "totalAmount", type: "number", step: "0.01", min: "0", className: inputClasses, value: formData.totalAmount, onChange: handleChange, placeholder: "e.g., 10000" })
-                  ),
-                  formData.isAdvance && createElement('div', { className: "mt-4 p-3 bg-gray-700 rounded-lg text-yellow-300 font-semibold" },
-                      createElement('p', null, `Balance Amount: ₹${balanceAmount.toLocaleString("en-IN")}`)
-                  )
-              ),
-              createElement('div', null,
-                  createElement('label', { htmlFor: "note", className: labelClasses }, "Note (Optional)"),
-                  createElement('textarea', { id: "note", name: "note", rows: 3, className: inputClasses, value: formData.note, onChange: handleChange, placeholder: "Any special requests or details..." })
-              ),
-              createElement('div', { className: "flex justify-end space-x-3 pt-4" },
-                  createElement('button', { type: "button", onClick: onCancel, className: "px-4 py-2 rounded-md bg-gray-600 hover:bg-gray-500 transition-colors" }, "Cancel"),
-                  createElement('button', { type: "submit", disabled: isSubmitting, className: "px-4 py-2 rounded-md bg-yellow-400 text-black font-bold hover:bg-yellow-500 transition-colors disabled:bg-yellow-400/50" },
-                      isSubmitting ? "Saving..." : (isEditing ? "Update Booking" : "Add Booking"))
               )
+            ),
+            createElement('div', { className: `pl-4 ml-2 border-l-2 border-yellow-400/50 form-section ${formData.withEditing && !applyInHouseRules ? 'open' : ''}` },
+              createElement('div', { className: "mt-4 space-y-4" },
+                createElement('h4', { className: "text-lg font-semibold text-gray-200" }, "Edit Payment (Optional)"),
+                createElement('div', null,
+                  createElement('label', { htmlFor: "editPaymentAmount", className: labelClasses }, "Edit Amount (₹)"),
+                  createElement('input', { id: "editPaymentAmount", name: "editPaymentAmount", type: "number", step: "0.01", min: "0", className: inputClasses, value: formData.editPaymentAmount, onChange: handleChange, placeholder: "e.g., 2500" })
+                ),
+                createElement('div', null,
+                  createElement('label', { htmlFor: "editPaymentMethod", className: labelClasses }, "Edit Payment Method"),
+                  createElement('select', { id: "editPaymentMethod", name: "editPaymentMethod", className: inputClasses, value: formData.editPaymentMethod, onChange: handleChange },
+                    PAYMENT_METHODS.map(m => createElement('option', { key: m, value: m }, m))
+                  )
+                )
+              )
+            )
+          ),
+          
+          !applyInHouseRules && createElement('div', { className: "p-3 bg-gray-800/50 rounded-lg border border-gray-700 space-y-4" },
+            createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
+              createElement('div', null,
+                createElement('label', { htmlFor: "paidAmount", className: labelClasses }, "Paid Amount (₹)"),
+                createElement('input', { id: "paidAmount", name: "paidAmount", type: "number", step: "0.01", min: "0", className: inputClasses, value: formData.paidAmount, onChange: handleChange, placeholder: "e.g., 5000" })
+              ),
+              createElement('div', null,
+                createElement('label', { htmlFor: "paymentMethod", className: labelClasses }, "Payment Method"),
+                createElement('select', { id: "paymentMethod", name: "paymentMethod", className: inputClasses, value: formData.paymentMethod, onChange: handleChange },
+                  PAYMENT_METHODS.map(m => createElement('option', { key: m, value: m }, m))
+                )
+              )
+            ),
+            createElement('div', null,
+              createElement('label', { className: checkboxLabelClasses },
+                createElement('input', { type: "checkbox", name: "isAdvance", className: checkboxClasses, checked: formData.isAdvance, onChange: handleChange }),
+                createElement('span', null, "This is an advance payment")
+              )
+            ),
+            formData.isAdvance && createElement('div', { className: "mt-4" },
+              createElement('label', { htmlFor: "totalAmount", className: labelClasses }, "Total Amount (₹)"),
+              createElement('input', { id: "totalAmount", name: "totalAmount", type: "number", step: "0.01", min: "0", className: inputClasses, value: formData.totalAmount, onChange: handleChange, placeholder: "e.g., 10000" })
+            ),
+            formData.isAdvance && createElement('div', { className: "mt-4 p-3 bg-gray-700 rounded-lg text-yellow-300 font-semibold" },
+              createElement('p', null, `Balance Amount: ₹${balanceAmount.toLocaleString("en-IN")}`)
+            )
+          ),
+
+          createElement('div', null,
+            createElement('label', { htmlFor: "note", className: labelClasses }, "Note (Optional)"),
+            createElement('textarea', { id: "note", name: "note", rows: 3, className: inputClasses, value: formData.note, onChange: handleChange, placeholder: "Any special requests or details..." })
+          ),
+          createElement('div', { className: "flex justify-end space-x-3 pt-4" },
+            createElement('button', { type: "button", onClick: onCancel, className: "px-4 py-2 rounded-md bg-gray-600 hover:bg-gray-500 transition-colors" }, "Cancel"),
+            createElement('button', { type: "submit", disabled: isSubmitting, className: "px-4 py-2 rounded-md bg-yellow-400 text-black font-bold hover:bg-yellow-500 transition-colors disabled:bg-yellow-400/50 disabled:cursor-not-allowed" },
+              isSubmitting ? "Saving..." : (isEditing ? "Update Booking" : "Add Booking"))
           )
+        )
       );
     }
     
-    function RentalList({ title, rentals, isAdmin, onEdit, onDelete, isTodayList = false, className = "" }) { // Added className prop
-      const todayStr = getTodayDateString();
-
+    function RentalList({ title, rentals, isAdmin, onEdit, onRequestDelete, isTodayList = false, className = "" }) {
       if (!rentals.length) {
-          if (!title) return null; // Don't render anything if no title and no rentals (for the 'other bookings' list)
-          return createElement("div", { className: `mb-12 ${className}` }, // Applied className here
+          if (!title) return null;
+          return createElement("div", { className: `mb-12 ${className}` },
               createElement('h2', { className: "text-3xl font-bold text-yellow-400 border-b-2 border-gray-700 pb-2 mb-6" }, title),
               createElement("div", { className: "text-center py-10 px-6 bg-gray-900 rounded-lg border border-dashed border-gray-700" },
-                  createElement("p", { className: "text-gray-400" }, isTodayList ? "No shoots scheduled for today." : "No bookings found for the selected month.")
+                  createElement("p", { className: "text-gray-400" }, isTodayList ? "No more shoots scheduled for today." : "No bookings found.")
               )
           );
       }
 
-      // Updated header titles
-      const headerTitles = ["Client", "Date", "Time", "Location/Equipment", "Payment", "Notes"];
+      const headerTitles = ["Client", "Date", "Time", "Details", "Payment", "Notes"];
 
-      return createElement("div", { className: `mb-12 ${className}` }, // Applied className here
-          title && createElement('h2', { className: "text-3xl font-bold text-yellow-400 border-b-2 border-gray-700 pb-2 mb-6" }, title),
-          createElement("div", { className: "bg-gray-900 rounded-xl shadow-lg ring-1 ring-gray-800 overflow-hidden" },
-              createElement("div", { className: "overflow-x-auto" },
-                  createElement("table", { className: "w-full text-sm text-left text-gray-400" },
-                      createElement("thead", { className: "text-xs text-gray-300 uppercase bg-gray-800" },
-                          createElement("tr", null,
-                              headerTitles.map(h => createElement("th", { key: h, className: "px-6 py-3" }, h)),
-                              isAdmin && createElement("th", { className: "px-6 py-3 print:hidden text-right" }, "Actions")
-                          )
-                      ),
-                      createElement("tbody", null,
-                          rentals.map(r =>
-                              createElement("tr", { key: r.id, className: "border-b border-gray-800 hover:bg-gray-800/50" },
-                                  createElement("td", { className: "px-6 py-4 font-medium text-white" },
-                                      createElement(Fragment, null,
-                                          r.clientName || "-",
-                                          // Display date range if multiple segments exist
-                                          !isTodayList && r.bookingSegments && r.bookingSegments.length > 1 && 
-                                              createElement("div", { className: "text-xs text-gray-500" }, 
-                                                  `${formatDateToMonthDay(r.bookingSegments[0].date)} - ${formatDateToMonthDay(r.bookingSegments[r.bookingSegments.length - 1].date)}`
-                                              )
-                                      )
-                                  ),
-                                  // Date Column
-                                  createElement("td", { className: "px-6 py-4" }, 
-                                      r.bookingSegments && r.bookingSegments.map((segment, idx) => 
-                                          createElement('div', { key: idx, className: "text-xs" }, 
-                                              formatDateToMonthDay(segment.date)
-                                          )
-                                      )
-                                  ),
-                                  // Time Column
-                                  createElement("td", { className: "px-6 py-4" }, 
-                                      r.bookingSegments && r.bookingSegments.map((segment, idx) => 
-                                          createElement('div', { key: idx, className: "text-xs" }, 
-                                              `${formatTimeTo12Hour(segment.startTime)}${segment.endTime && !r.isInHouseClient ? ` - ${formatTimeTo12Hour(segment.endTime)}` : ''}${r.isInHouseClient ? ' (InHouse)' : ''}`
-                                          )
-                                      )
-                                  ),
-                                  createElement("td", { className: "px-6 py-4" },
-                                      createElement('div', { className: "flex flex-col gap-1" },
-                                          r.isOutside ?
-                                          createElement('span', { className: "flex items-center gap-2" },
-                                              createElement('svg', { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 20 20", fill: "currentColor", className: "w-4 h-4 text-yellow-400" }, createElement('path', { fillRule: "evenodd", d: "M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.1.4-.27.61-.473A10.5 10.5 0 0016 11.25c0-2.278-1.543-4.37-3.692-5.404a5.813 5.813 0 00-1.74-1.636l-.001-.001-.002-.002-.002-.002-.001-.001A5.812 5.812 0 0010 3.75c-1.39 0-2.678.57-3.568 1.46-1.258 1.258-1.42 3.43.033 4.912A10.5 10.5 0 004 11.25c0 2.278 1.543 4.37 3.692 5.404l.002.001.002.002.002.002.001.001a5.813 5.813 0 001.74 1.636l.001.001.002.002.002.002.001.001zM10 13a2 2 0 100-4 2 2 0 000 4z", clipRule: "evenodd" })),
-                                              r.location
-                                          ) :
-                                          createElement('span', null, 'In Studio'),
-                                          r.withEquipment &&
-                                          createElement('span', { className: "text-xs text-gray-500" },
-                                              [
-                                                  r.hasCamera && r.cameras > 0 && `${r.cameras} cam`,
-                                                  r.mic && `mic`,
-                                                  r.lights && `lights`
-                                              ].filter(Boolean).join(' / ')
-                                          )
-                                      )
-                                  ),
-                                  createElement("td", { className: "px-6 py-4" },
-                                      // Conditionally display payment info
-                                      !r.isInHouseClient ?
-                                      createElement('div', { className: "flex flex-col" },
-                                          r.isAdvance && (r.totalAmount - r.paidAmount) > 0 ?
-                                          createElement('span', { className: "font-semibold text-red-400" }, `Balance: ₹${(r.totalAmount - r.paidAmount).toLocaleString("en-IN")}`) :
-                                          createElement('span', { className: "font-semibold text-yellow-400" }, `₹${r.paidAmount?.toLocaleString("en-IN") ?? "0"}`),
-                                          createElement('span', { className: "text-xs text-gray-500" }, `${r.paymentMethod || ''}${r.isAdvance ? ' (Advance)' : ''}`)
-                                      ) : createElement('span', { className: "text-gray-500" }, "N/A (InHouse)")
-                                  ),
-                                  createElement("td", { className: "px-6 py-4 min-w-[200px] text-gray-500 italic" }, r.note ? `"${r.note}"` : "-"),
-                                  isAdmin &&
-                                  createElement("td", { className: "px-6 py-4 print:hidden text-right" },
-                                      createElement("div", { className: "flex items-center justify-end space-x-1" },
-                                          createElement("button", { onClick: () => onEdit(r), className: "p-2 text-yellow-400 hover:bg-yellow-400/20 rounded-full", title: "Edit" },
-                                              createElement("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, createElement("path", { d: "M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" }))
-                                          ),
-                                          createElement("button", { onClick: () => { if (confirm("Delete this booking permanently?")) onDelete(r.id); }, className: "p-2 text-red-500 hover:bg-red-500/20 rounded-full", title: "Delete" },
-                                              createElement("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, createElement("path", { d: "M3 6h18" }), createElement("path", { d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" }))
-                                          )
-                                      )
-                                  )
-                              )
+      return createElement("div", { className: `mb-12 ${className}` },
+        title && createElement('h2', { className: "text-3xl font-bold text-yellow-400 border-b-2 border-gray-700 pb-2 mb-6" }, title),
+        createElement("div", { className: "bg-gray-900 rounded-xl shadow-lg ring-1 ring-gray-800 overflow-hidden" },
+          createElement("div", { className: "overflow-x-auto" },
+            createElement("table", { className: "w-full text-sm text-left text-gray-400" },
+              createElement("thead", { className: "text-xs text-gray-300 uppercase bg-gray-800" },
+                createElement("tr", null,
+                  headerTitles.map(h => createElement("th", { key: h, className: "px-6 py-3" }, h)),
+                  isAdmin && createElement("th", { className: "px-6 py-3 print:hidden text-right" }, "Actions")
+                )
+              ),
+              createElement("tbody", null,
+                rentals.map(r =>
+                  createElement("tr", { key: r.id + (r.bookingSegments[0]?.date || ''), className: "border-b border-gray-800 hover:bg-gray-800/50" },
+                    createElement("td", { className: "px-6 py-4 font-medium text-white" },
+                      createElement(Fragment, null,
+                        r.clientName || "-",
+                        !isTodayList && r.bookingSegments && r.bookingSegments.length > 1 && 
+                          createElement("div", { className: "text-xs text-gray-500" }, 
+                            `${formatDateToMonthDay(r.bookingSegments[0].date)} - ${formatDateToMonthDay(r.bookingSegments[r.bookingSegments.length - 1].date)}`
                           )
                       )
+                    ),
+                    createElement("td", { className: "px-6 py-4" }, 
+                      r.bookingSegments && r.bookingSegments.map((segment, idx) => 
+                        createElement('div', { key: idx, className: "text-xs" }, 
+                          formatDateToMonthDay(segment.date)
+                        )
+                      )
+                    ),
+                    createElement("td", { className: "px-6 py-4" }, 
+                      r.bookingSegments && r.bookingSegments.map((segment, idx) => {
+                        let timeDisplay = `${formatTimeTo12Hour(segment.startTime)}`;
+                        if (segment.endTime && !(r.isInHouseClient || r.isPossibleStudioShoot)) {
+                          timeDisplay += ` - ${formatTimeTo12Hour(segment.endTime)}`;
+                        }
+                        return createElement('div', { key: idx, className: "text-xs" }, timeDisplay);
+                      })
+                    ),
+                    createElement("td", { className: "px-6 py-4" },
+                      createElement('div', { className: "flex flex-col gap-1" },
+                        r.isOutside ?
+                        createElement('span', { className: "flex items-center gap-2" },
+                          createElement('svg', { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 20 20", fill: "currentColor", className: "w-4 h-4 text-yellow-400" }, createElement('path', { fillRule: "evenodd", d: "M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.1.4-.27.61-.473A10.5 10.5 0 0016 11.25c0-2.278-1.543-4.37-3.692-5.404a5.813 5.813 0 00-1.74-1.636l-.001-.001-.002-.002-.002-.002-.001-.001A5.812 5.812 0 0010 3.75c-1.39 0-2.678.57-3.568 1.46-1.258 1.258-1.42 3.43.033 4.912A10.5 10.5 0 004 11.25c0 2.278 1.543 4.37 3.692 5.404l.002.001.002.002.002.002.001.001a5.813 5.813 0 001.74 1.636l.001.001.002.002.002.002.001.001zM10 13a2 2 0 100-4 2 2 0 000 4z", clipRule: "evenodd" })),
+                          r.location
+                        ) :
+                        createElement('span', { className: "font-semibold" }, 'In Studio'),
+                        r.withEquipment &&
+                        createElement('span', { className: "text-xs text-gray-500" },
+                          [
+                            r.hasCamera && r.cameras > 0 && `${r.cameras} cam`,
+                            r.mic && (r.micType && r.micType.length > 0 ? `mic (${r.micType.join(' / ')})` : `mic`),
+                            r.lights && `lights`
+                          ].filter(Boolean).join(' | ')
+                        )
+                      )
+                    ),
+                    createElement("td", { className: "px-6 py-4" },
+                      createElement('div', { className: "flex items-center min-h-[40px]" },
+                        !r.isLastSegment && !r.isInHouseClient && !r.isPossibleStudioShoot ? 
+                        createElement('span', { className: "px-2 py-1 text-xs font-medium rounded-full bg-gray-700 text-gray-300" }, "Multiple Booking") :
+                        r.isInHouseClient ? createElement('span', { className: "px-2 py-1 text-xs font-medium rounded-full bg-blue-900 text-blue-300" }, "InHouse") :
+                        r.isPossibleStudioShoot ? createElement('span', { className: "px-2 py-1 text-xs font-medium rounded-full bg-purple-900 text-purple-300" }, "Possible") :
+                        createElement('div', { className: "flex flex-col" },
+                          r.isAdvance ? (
+                            (r.totalAmount - r.paidAmount) > 0 ?
+                            createElement('span', { className: "font-semibold text-red-400" }, `Pending: ₹${(r.totalAmount - r.paidAmount).toLocaleString("en-IN")}`) :
+                            createElement('span', { className: "font-semibold text-green-400" }, `Paid: ₹${r.totalAmount?.toLocaleString("en-IN") ?? "0"}`)
+                          ) : createElement('span', { className: "font-semibold text-yellow-400" }, `₹${r.paidAmount?.toLocaleString("en-IN") ?? "0"}`),
+                          createElement('span', { className: "text-xs text-gray-500" }, `${r.paymentMethod || ''}${r.isAdvance ? ` (Adv: ₹${r.paidAmount?.toLocaleString("en-IN") ?? "0"})` : ''}`)
+                        )
+                      )
+                    ),
+                    createElement("td", { className: "px-6 py-4 min-w-[200px] text-gray-500 italic" }, 
+                      createElement(Fragment, null,
+                        r.note ? `"${r.note}"` : "",
+                        r.withEditing && createElement('span', { className: "block mt-1 text-yellow-400/80 text-xs" }, 
+                          `(Rental: ₹${(r.paidAmount - r.editPaymentAmount)?.toLocaleString("en-IN") ?? "0"} | Editing: ₹${r.editPaymentAmount?.toLocaleString("en-IN") ?? "0"})`
+                        )
+                      )
+                    ),
+                    isAdmin &&
+                    createElement("td", { className: "px-6 py-4 print:hidden text-right" },
+                      createElement("div", { className: "flex items-center justify-end space-x-1" },
+                        createElement("button", { onClick: () => onEdit(r), className: "p-2 text-yellow-400 hover:bg-yellow-400/20 rounded-full", title: "Edit" },
+                          createElement("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, createElement("path", { d: "M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" }))
+                        ),
+                        createElement("button", { onClick: () => onRequestDelete(r.id), className: "p-2 text-red-500 hover:bg-red-500/20 rounded-full", title: "Delete" },
+                          createElement("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, createElement("path", { d: "M3 6h18" }), createElement("path", { d: "M19 6v14a2 2 0 0 1-2 2H7a2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 0 0 1 2 2v2" }))
+                        )
+                      )
+                    )
                   )
+                )
               )
+            )
           )
+        )
       );
     }
     
     function Summary({ rentals }) {
       const stats = useMemo(() => {
-          // Filter out in-house clients from financial calculations
-          const billableRentals = rentals.filter(r => !r.isInHouseClient);
-          const totalAmount = billableRentals.reduce((a, e) => a + (e.paidAmount || 0), 0);
-          const totalAdvanceAmount = billableRentals.reduce((a, e) => a + (e.isAdvance ? (e.totalAmount || 0) : 0), 0);
-          const totalBalanceAmount = billableRentals.reduce((a, e) => a + (e.isAdvance ? ((e.totalAmount || 0) - (e.paidAmount || 0)) : 0), 0);
-          const totalShoots = rentals.length; // Count all shoots, including in-house
-          return { totalAmount, totalShoots, totalAdvanceAmount, totalBalanceAmount };
+          const billableRentals = rentals.filter(r => !(r.isInHouseClient || r.isPossibleStudioShoot));
+          const totalPaidAmount = billableRentals.reduce((a, e) => a + (Number(e.paidAmount) || 0), 0);
+          const totalEditRevenue = rentals.reduce((a, e) => a + (e.withEditing ? (Number(e.editPaymentAmount) || 0) : 0), 0);
+          const totalRevenue = totalPaidAmount + totalEditRevenue;
+          
+          const totalShoots = rentals.reduce((count, rental) => {
+            return count + (rental.bookingSegments ? rental.bookingSegments.length : 0);
+          }, 0);
+
+          return { totalRevenue, totalShoots };
       }, [rentals]);
 
       return createElement("div", null,
-          createElement("h3", { className: "text-xl font-bold mb-4 text-white" }, "Monthly Summary"),
-          createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-center" },
-              createElement("div", { className: "bg-gray-800/50 p-4 rounded-lg ring-1 ring-gray-700" },
-                  createElement("p", { className: "text-sm text-yellow-400 font-semibold" }, "Total Revenue (Paid)"),
-                  createElement("p", { className: "text-2xl font-bold text-white mt-1" }, `₹${stats.totalAmount.toLocaleString("en-IN")}`)
-              ),
-              createElement("div", { className: "bg-gray-800/50 p-4 rounded-lg ring-1 ring-gray-700" },
-                  createElement("p", { className: "text-sm text-yellow-400 font-semibold" }, "Total Shoots"),
-                  createElement("p", { className: "text-2xl font-bold text-white mt-1" }, stats.totalShoots)
-              ),
-              createElement("div", { className: "bg-gray-800/50 p-4 rounded-lg ring-1 ring-gray-700" },
-                  createElement("p", { className: "text-sm text-yellow-400 font-semibold" }, "Total Advance Booked"),
-                  createElement("p", { className: "text-2xl font-bold text-white mt-1" }, `₹${stats.totalAdvanceAmount.toLocaleString("en-IN")}`)
-              ),
-              createElement("div", { className: "bg-gray-800/50 p-4 rounded-lg ring-1 ring-gray-700" },
-                  createElement("p", { className: "text-sm text-yellow-400 font-semibold" }, "Total Balance Due"),
-                  createElement("p", { className: "text-2xl font-bold text-white mt-1" }, `₹${stats.totalBalanceAmount.toLocaleString("en-IN")}`)
-              )
+        createElement("h3", { className: "text-xl font-bold mb-4 text-white" }, "Summary"),
+        createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4 text-center" },
+          createElement("div", { className: "bg-gray-800/50 p-4 rounded-lg ring-1 ring-gray-700" },
+            createElement("p", { className: "text-sm text-yellow-400 font-semibold" }, "Total Revenue (Paid)"),
+            createElement("p", { className: "text-2xl font-bold text-white mt-1" }, `₹${stats.totalRevenue.toLocaleString("en-IN")}`)
+          ),
+          createElement("div", { className: "bg-gray-800/50 p-4 rounded-lg ring-1 ring-gray-700" },
+            createElement("p", { className: "text-sm text-yellow-400 font-semibold" }, "Total Shoots"),
+            createElement("p", { className: "text-2xl font-bold text-white mt-1" }, stats.totalShoots)
           )
+        )
       );
     }
 
@@ -712,198 +746,212 @@
       const [error, setError] = useState('');
       const [successMsg, setSuccessMsg] = useState('');
       const [currentTime, setCurrentTime] = useState(new Date());
+      const [bookingToDelete, setBookingToDelete] = useState(null);
       
       useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(new Date()), 60000); // Refresh every minute
+        const timer = setInterval(() => setCurrentTime(new Date()), 60000);
         return () => clearInterval(timer);
       }, []);
 
       useEffect(() => {
-          // Use onValue from Firebase Realtime Database with the compat library
-          const onDataChange = snapshot => {
-              const arr = [];
-              snapshot.forEach(child => {
-                  const val = child.val();
-                  if (val) {
-                      // Adapt old data structure to new bookingSegments if necessary
-                      if (!val.bookingSegments && val.date && val.startTime && val.endTime) {
-                          val.bookingSegments = [{ date: val.date, startTime: val.startTime, endTime: val.endTime }];
-                      } else if (!val.bookingSegments) {
-                          val.bookingSegments = []; // Ensure it's an array even if empty
-                      }
-                      arr.push({ ...val, id: child.key, paidAmount: Number(val.paidAmount) || 0, totalAmount: Number(val.totalAmount) || 0 });
-                  }
-              });
-              const sorted = arr.sort((a,b) => {
-                  // Sort by the first booking segment's date and time
-                  const valA = a.bookingSegments && a.bookingSegments.length > 0 ? `${a.bookingSegments[0].date || '0000-00-00'} ${a.bookingSegments[0].startTime || '00:00'}` : '0000-00-00 00:00';
-                  const valB = b.bookingSegments && b.bookingSegments.length > 0 ? `${b.bookingSegments[0].date || '0000-00-00'} ${b.bookingSegments[0].startTime || '00:00'}` : '0000-00-00 00:00';
-                  return valA.localeCompare(valB); // Sort ascending by default
-              });
-              setBookings(sorted);
-              setLoading(false);
-          };
-          const onError = err => { setError("Failed to load bookings."); setLoading(false); console.error(err); };
-          
-          // Attach the listener
-          rentalsQuery.on('value', onDataChange, onError);
-
-          // Return a cleanup function
-          return () => rentalsQuery.off('value', onDataChange);
+        const onDataChange = snapshot => {
+          const arr = [];
+          snapshot.forEach(child => {
+            const val = child.val();
+            if (val) {
+              arr.push({ id: child.key, ...val });
+            }
+          });
+          setBookings(arr);
+          setLoading(false);
+        };
+        const onError = err => { setError("Failed to load bookings."); setLoading(false); console.error(err); };
+        
+        rentalsQuery.on('value', onDataChange, onError);
+        return () => rentalsQuery.off('value', onDataChange);
       }, []);
 
       function displayMessage(setter, msg) {
-          setter(msg);
-          setTimeout(() => setter(""), 3000);
+        setter(msg);
+        setTimeout(() => setter(""), 3000);
       }
 
       function doLogin(pwd) {
-          if (pwd === ADMIN_PASSWORD) { setIsAdmin(true); setShowLogin(false); return true; }
-          return false;
+        if (pwd === ADMIN_PASSWORD) { setIsAdmin(true); setShowLogin(false); return true; }
+        return false;
       }
 
       function doLogout() {
-          setIsAdmin(false);
-          setEditBooking(null);
-          setShowForm(false);
+        setIsAdmin(false);
+        setEditBooking(null);
+        setShowForm(false);
       }
 
-      async function handleDelete(id) {
+      function handleRequestDelete(id) {
+          setBookingToDelete(id);
+      }
+      
+      async function handleConfirmDelete() {
+          if (!bookingToDelete) return;
           try {
-              await rentalsRef.child(id).remove();
-              displayMessage(setSuccessMsg, "Booking deleted.");
+              await rentalsRef.child(bookingToDelete).remove();
+              displayMessage(setSuccessMsg, "Booking deleted successfully.");
           } catch (e) {
-              displayMessage(setError, "Delete failed.");
+              displayMessage(setError, "Delete failed. Please try again.");
               console.error(e);
+          } finally {
+              setBookingToDelete(null);
           }
       }
 
       function handleEdit(booking) {
-          setEditBooking(booking);
-          setShowForm(true);
-          window.scrollTo({ top: 0, behavior: "smooth" });
+        const originalBooking = bookings.find(b => b.id === booking.id);
+        setEditBooking(originalBooking);
+        setShowForm(true);
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
       
       function handleAddNewClick() {
-          setEditBooking(null);
-          setShowForm(true);
+        setEditBooking(null);
+        setShowForm(true);
       }
       
       function handleCancelForm() {
-          setEditBooking(null);
-          setShowForm(false);
+        setEditBooking(null);
+        setShowForm(false);
       }
 
       function handleSuccess(msg) {
-          displayMessage(setSuccessMsg, msg);
-          setEditBooking(null);
-          setShowForm(false);
+        displayMessage(setSuccessMsg, msg);
+        setEditBooking(null);
+        setShowForm(false);
       }
       
-      const { upcomingBookings, todaysBookings, pastBookings } = useMemo(() => {
-          const now = currentTime;
-          const todayStr = getTodayDateString();
-          
-          const upcoming = [];
-          const todays = [];
-          const past = [];
+      const { todaysBookings, upcomingBookings, pastBookings } = useMemo(() => {
+        const now = currentTime;
+        const todayStr = getTodayDateString();
+        
+        const allUpcoming = [];
+        const allTodays = [];
+        const allPast = [];
 
-          bookings.forEach(b => {
-              let hasPast = false, hasToday = false, hasUpcoming = false;
-              b.bookingSegments.forEach(segment => {
-                  const segmentDate = new Date(segment.date);
-                  segmentDate.setHours(0, 0, 0, 0);
-                  const todayDate = new Date(todayStr);
-                  todayDate.setHours(0, 0, 0, 0);
+        bookings.forEach(booking => {
+            if (!booking.bookingSegments || booking.bookingSegments.length === 0) return;
 
-                  if (segment.date === todayStr) {
-                      hasToday = true;
-                  } else if (segmentDate < todayDate) {
-                      hasPast = true;
-                  } else {
-                      hasUpcoming = true;
-                  }
-              });
+            booking.bookingSegments.forEach((segment, index) => {
+                const singleShootBooking = {
+                    ...booking,
+                    bookingSegments: [segment],
+                    isLastSegment: index === booking.bookingSegments.length - 1
+                };
 
-              // If the booking has segments spanning multiple categories, add it to all relevant lists
-              if (hasPast) past.push(b);
-              if (hasToday) todays.push(b);
-              if (hasUpcoming) upcoming.push(b);
-          });
+                let endDateTime;
+                const isSpecialBooking = singleShootBooking.isInHouseClient || singleShootBooking.isPossibleStudioShoot;
 
-          const ascSort = (a, b) => {
-              const dateA = a.bookingSegments && a.bookingSegments.length > 0 ? new Date(`${a.bookingSegments[0].date}T${a.bookingSegments[0].startTime}`) : new Date('0000-00-00T00:00');
-              const dateB = b.bookingSegments && b.bookingSegments.length > 0 ? new Date(`${b.bookingSegments[0].date}T${b.bookingSegments[0].startTime}`) : new Date('0000-00-00T00:00');
-              return dateA - dateB;
-          };
-          upcoming.sort(ascSort);
-          todays.sort(ascSort);
-          past.sort(ascSort);
+                if (isSpecialBooking || !segment.endTime) {
+                    endDateTime = new Date(segment.date);
+                    endDateTime.setHours(23, 59, 59, 999);
+                } else {
+                    endDateTime = new Date(`${segment.date}T${segment.endTime}`);
+                }
 
-          return { upcomingBookings: upcoming, todaysBookings: todays, pastBookings: past };
+                if (now > endDateTime) {
+                    allPast.push(singleShootBooking);
+                } else if (segment.date === todayStr) {
+                    allTodays.push(singleShootBooking);
+                } else {
+                    allUpcoming.push(singleShootBooking);
+                }
+            });
+        });
+
+        const sortAsc = (a, b) => (a.bookingSegments[0].date + a.bookingSegments[0].startTime).localeCompare(b.bookingSegments[0].date + b.bookingSegments[0].startTime);
+        const sortDesc = (a, b) => (b.bookingSegments[0].date + b.bookingSegments[0].startTime).localeCompare(a.bookingSegments[0].date + a.bookingSegments[0].startTime);
+
+        return {
+            todaysBookings: allTodays.sort(sortAsc),
+            upcomingBookings: allUpcoming.sort(sortAsc),
+            pastBookings: allPast.sort(sortDesc),
+        };
       }, [bookings, currentTime]);
 
-      // Upcoming bookings will no longer be filtered by month
-      const filteredUpcomingBookings = upcomingBookings;
-
       const filteredPastBookings = useMemo(() => {
-          if (selectedMonth === "all") return pastBookings;
-          return pastBookings.filter(b => b.bookingSegments && b.bookingSegments.length > 0 && new Date(b.bookingSegments[0].date).getMonth() + 1 === Number(selectedMonth));
+        if (selectedMonth === "all") return pastBookings;
+        return pastBookings.filter(b => 
+            (new Date(b.bookingSegments[0].date).getMonth() + 1) === Number(selectedMonth)
+        );
       }, [pastBookings, selectedMonth]);
 
+      const printSummaryRentals = useMemo(() => {
+        return [...filteredPastBookings].sort((a, b) => (a.bookingSegments[0].date).localeCompare(b.bookingSegments[0].date));
+      }, [filteredPastBookings]);
+
       return createElement('div', { className: "container mx-auto p-4 md:p-8 max-w-7xl" },
-          createElement('header', { className: "flex flex-col sm:flex-row justify-between items-center gap-4 mb-8" },
-              createElement('h1', { className: "text-2xl md:text-3xl font-bold text-white tracking-tight" }, "Possible ", createElement('span', { className: "text-yellow-400" }, "Studio "), "Manager"),
-              createElement('div', { className: "flex items-center gap-3 print:hidden" },
-                  isAdmin && createElement('button', { onClick: handleAddNewClick, className: "flex items-center space-x-2 bg-yellow-400 text-black font-bold px-4 py-2 rounded-lg hover:bg-yellow-500 transition-all duration-200 transform hover:scale-105" }, 
-                    createElement('svg', {xmlns:"http://www.w3.org/2000/svg", fill:"none", viewBox:"0 0 24 24", strokeWidth:2, stroke:"currentColor", className:"w-5 h-5"}, createElement('path', {strokeLinecap:"round", strokeLinejoin:"round", d:"M12 4.5v15m7.5-7.5h-15"})),
-                    createElement('span', {className:"hidden sm:inline"}, "Add Booking")
-                  ),
-                  isAdmin ? createElement('button', { onClick: doLogout, className: "bg-gray-800 text-white font-semibold py-2 px-4 rounded-md hover:bg-gray-700 ring-1 ring-gray-600" }, "Logout")
-                      : createElement('button', { onClick: () => setShowLogin(true), className: "bg-yellow-400 text-black font-bold py-2 px-4 rounded-md hover:bg-yellow-500" }, "Admin Login")
+        createElement('header', { className: "flex flex-col sm:flex-row justify-between items-center gap-4 mb-8" },
+          createElement('h1', { className: "text-2xl md:text-3xl font-bold text-white tracking-tight" }, "Possible ", createElement('span', { className: "text-yellow-400" }, "Studio "), "Manager"),
+          createElement('div', { className: "flex items-center gap-3 print:hidden" },
+            isAdmin && createElement('button', { onClick: handleAddNewClick, className: "flex items-center space-x-2 bg-yellow-400 text-black font-bold px-4 py-2 rounded-lg hover:bg-yellow-500 transition-all duration-200 transform hover:scale-105" }, 
+              createElement('svg', {xmlns:"http://www.w3.org/2000/svg", fill:"none", viewBox:"0 0 24 24", strokeWidth:2, stroke:"currentColor", className:"w-5 h-5"}, createElement('path', {strokeLinecap:"round", strokeLinejoin:"round", d:"M12 4.5v15m7.5-7.5h-15"})),
+              createElement('span', {className:"hidden sm:inline"}, "Add Booking")
+            ),
+            createElement('a', { 
+                href: 'https://pscbe.github.io/edit/', 
+                target: '_blank', 
+                rel: 'noopener noreferrer', 
+                className: "bg-gray-700 text-gray-300 text-sm font-semibold py-2 px-4 rounded-md hover:bg-gray-600 ring-1 ring-gray-600" 
+            }, "Edit works"),
+            isAdmin ? createElement('button', { onClick: doLogout, className: "bg-gray-800 text-white font-semibold py-2 px-4 rounded-md hover:bg-gray-700 ring-1 ring-gray-600" }, "Logout")
+                    : createElement('button', { onClick: () => setShowLogin(true), className: "bg-yellow-400 text-black font-bold py-2 px-4 rounded-md hover:bg-yellow-500" }, "Admin Login")
+          )
+        ),
+
+        successMsg && createElement('div', { className: "bg-green-900/70 border border-green-500/50 text-green-300 px-4 py-3 rounded-md mb-4", role: "alert" }, successMsg),
+        error && createElement('div', { className: "bg-red-900/70 border border-red-500/50 text-red-300 px-4 py-3 rounded-md mb-4", role: "alert" }, error),
+        
+        createElement(LoginModal, { isOpen: showLogin, onClose: () => setShowLogin(false), onLogin: doLogin }),
+        createElement(ConfirmModal, { 
+            isOpen: !!bookingToDelete, 
+            onClose: () => setBookingToDelete(null), 
+            onConfirm: handleConfirmDelete,
+            title: "Confirm Deletion",
+            message: "Are you sure you want to permanently delete this booking? This action cannot be undone."
+        }),
+
+        isAdmin && showForm && createElement(RentalForm, { rentalToEdit: editBooking, onSubmitSuccess: handleSuccess, onCancel: handleCancelForm }),
+
+        loading ? createElement(LoadingSpinner) : 
+        createElement(Fragment, null, 
+          createElement(RentalList, { title: "Today's Shoots", rentals: todaysBookings, isAdmin: isAdmin, onEdit: handleEdit, onRequestDelete: handleRequestDelete, isTodayList: true, className: "hide-on-print" }),
+          
+          createElement('div', { className: "my-8 hide-on-print" },
+            createElement(RentalList, { 
+              title: "Upcoming Bookings",
+              rentals: upcomingBookings,
+              isAdmin: isAdmin, 
+              onEdit: handleEdit, 
+              onRequestDelete: handleRequestDelete,
+            })
+          ),
+          
+          createElement('div', { className: "my-8" },
+            createElement('div', { className: "flex flex-col sm:flex-row justify-between items-center gap-4 mb-6" },
+              createElement('h2', { className: "text-3xl font-bold text-yellow-400 border-b-2 border-gray-700 pb-2 flex-grow" }, "Past Bookings"),
+              createElement('div', { className: "print:hidden" },
+                createElement('label', { htmlFor: "month-filter", className: "font-semibold text-gray-400 mr-2" }, "Filter by Month:"),
+                createElement('select', { id: "month-filter", className: "bg-gray-800 border border-gray-700 rounded-md px-2 py-1 text-white", value: selectedMonth, onChange: e => setSelectedMonth(e.target.value) },
+                  createElement('option', { value: "all" }, "All Months"),
+                  MONTHS.map((m, i) => createElement('option', { key: i, value: i + 1 }, m))
+                )
               )
+            ),
+            createElement(RentalList, { title: "", rentals: filteredPastBookings, isAdmin: isAdmin, onEdit: handleEdit, onRequestDelete: handleRequestDelete })
           ),
 
-          successMsg && createElement('div', { className: "bg-green-900/70 border border-green-500/50 text-green-300 px-4 py-3 rounded-md mb-4", role: "alert" }, successMsg),
-          error && createElement('div', { className: "bg-red-900/70 border border-red-500/50 text-red-300 px-4 py-3 rounded-md mb-4", role: "alert" }, error),
-          createElement(LoginModal, { isOpen: showLogin, onClose: () => setShowLogin(false), onLogin: doLogin }),
-
-          isAdmin && showForm && createElement(RentalForm, { rentalToEdit: editBooking, onSubmitSuccess: handleSuccess, onCancel: handleCancelForm }),
-
-          loading ? createElement(LoadingSpinner) : 
-          createElement(Fragment, null, 
-              createElement(RentalList, { title: "Today's Shoots", rentals: todaysBookings, isAdmin: isAdmin, onEdit: handleEdit, onDelete: handleDelete, isTodayList: true, className: "hide-on-print" }),
-              
-              createElement('div', { className: "my-8 hide-on-print" }, // This div is now entirely hidden on print
-                  createElement('h2', { className: "text-3xl font-bold text-yellow-400 border-b-2 border-gray-700 pb-2 mb-6" }, "Upcoming Bookings"),
-                  createElement(RentalList, { 
-                      rentals: filteredUpcomingBookings, // No longer filtered by month
-                      isAdmin: isAdmin, 
-                      onEdit: handleEdit, 
-                      onDelete: handleDelete,
-                  })
-              ),
-              
-              // Past bookings section with its month filter
-              createElement('div', { className: "my-8" },
-                  createElement('div', { className: "flex flex-col sm:flex-row justify-between items-center gap-4 mb-6" },
-                      createElement('h2', { className: "text-3xl font-bold text-yellow-400 border-b-2 border-gray-700 pb-2" }, "Past Bookings"),
-                      createElement('div', null,
-                          createElement('label', { htmlFor: "month-filter", className: "font-semibold text-gray-400 mr-2" }, "Filter by Month:"),
-                          createElement('select', { id: "month-filter", className: "bg-gray-800 border border-gray-700 rounded-md px-2 py-1 text-white", value: selectedMonth, onChange: e => setSelectedMonth(e.target.value) },
-                              createElement('option', { value: "all" }, "All Months"),
-                              MONTHS.map((m, i) => createElement('option', { key: i, value: i + 1 }, m))
-                          )
-                      )
-                  ),
-                  createElement(RentalList, { title: "", rentals: filteredPastBookings, isAdmin: isAdmin, onEdit: handleEdit, onDelete: handleDelete }) // Title removed as it's handled by the h2 above
-              ),
-
-              createElement('div', { className: "my-8 bg-gray-900 p-4 sm:p-6 rounded-xl shadow-md ring-1 ring-gray-800 summary-print-container" },
-                  createElement(Summary, { rentals: filteredPastBookings }),
-                  createElement('button', { onClick: () => window.print(), className: "w-full mt-4 bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-600 print:hidden" }, "Print Filtered Report")
-              )
+          createElement('div', { className: "my-8 bg-gray-900 p-4 sm:p-6 rounded-xl shadow-md ring-1 ring-gray-800 summary-print-container" },
+            createElement(Summary, { rentals: printSummaryRentals }),
+            createElement('button', { onClick: () => window.print(), className: "w-full mt-4 bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-600 print:hidden" }, "Print Filtered Report")
           )
+        )
       );
     }
 
