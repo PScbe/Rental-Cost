@@ -637,11 +637,11 @@
                     ),
                     createElement("td", { className: "px-6 py-4" }, 
                       r.bookingSegments && r.bookingSegments.map((segment, idx) => {
-                        let timeDisplay = `${formatTimeTo12Hour(segment.startTime)}`;
-                        if (segment.endTime && !(r.isInHouseClient || r.isPossibleStudioShoot)) {
-                          timeDisplay += ` - ${formatTimeTo12Hour(segment.endTime)}`;
-                        }
-                        return createElement('div', { key: idx, className: "text-xs" }, timeDisplay);
+                          let timeDisplay = `${formatTimeTo12Hour(segment.startTime)}`;
+                          if (segment.endTime && !(r.isInHouseClient || r.isPossibleStudioShoot)) {
+                            timeDisplay += ` - ${formatTimeTo12Hour(segment.endTime)}`;
+                          }
+                          return createElement('div', { key: idx, className: "text-xs" }, timeDisplay);
                       })
                     ),
                     createElement("td", { className: "px-6 py-4" },
@@ -708,14 +708,21 @@
     
     function Summary({ rentals }) {
       const stats = useMemo(() => {
-          const billableRentals = rentals.filter(r => !(r.isInHouseClient || r.isPossibleStudioShoot));
+          // FIX: The `rentals` prop contains a list of individual shoot *days*, meaning a multi-day
+          // booking will appear multiple times. This caused the original code to double-count revenue.
+          // To fix this, we first create a list of unique bookings using a Map, keyed by the booking ID.
+          // This ensures we only count the payment for each booking once.
+          const uniqueBookings = Array.from(new Map(rentals.map(r => [r.id, r])).values());
+
+          // Calculate revenue based on the de-duplicated list of unique bookings.
+          const billableRentals = uniqueBookings.filter(r => !(r.isInHouseClient || r.isPossibleStudioShoot));
           const totalPaidAmount = billableRentals.reduce((a, e) => a + (Number(e.paidAmount) || 0), 0);
-          const totalEditRevenue = rentals.reduce((a, e) => a + (e.withEditing ? (Number(e.editPaymentAmount) || 0) : 0), 0);
+          const totalEditRevenue = uniqueBookings.reduce((a, e) => a + (e.withEditing ? (Number(e.editPaymentAmount) || 0) : 0), 0);
           const totalRevenue = totalPaidAmount + totalEditRevenue;
           
-          const totalShoots = rentals.reduce((count, rental) => {
-            return count + (rental.bookingSegments ? rental.bookingSegments.length : 0);
-          }, 0);
+          // The total number of shoots is the count of individual shoot *days*, which is
+          // simply the length of the original `rentals` array passed to the component.
+          const totalShoots = rentals.length;
 
           return { totalRevenue, totalShoots };
       }, [rentals]);
