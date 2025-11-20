@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Check, Plus, Minus } from 'lucide-react';
+import { trackLead, trackInitiateCheckout } from '../../utils/metaPixel';
 
 const PackageCalculator = () => {
     // State
@@ -75,6 +76,27 @@ const PackageCalculator = () => {
     }, [cameras, reels, fullLength, posters, sameShoot]);
 
     const formatINR = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val);
+
+    const handleBookPackage = () => {
+        // Track conversion events
+        trackInitiateCheckout({
+            name: 'Monthly Package',
+            category: 'package',
+            numItems: reels + fullLength + posters,
+            value: total,
+            currency: 'INR',
+        });
+
+        trackLead({
+            name: 'Monthly Package',
+            category: 'package',
+            value: total,
+            currency: 'INR',
+        });
+
+        // You can add WhatsApp integration or other booking flow here
+        alert('Package booking feature - integrate with your booking system');
+    };
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -223,7 +245,10 @@ const PackageCalculator = () => {
                             </span>
                         </div>
 
-                        <button className="w-full bg-primary hover:bg-yellow-400 text-black font-bold py-4 rounded-xl shadow-lg transition-all transform hover:scale-[1.02]">
+                        <button
+                            onClick={handleBookPackage}
+                            className="w-full bg-primary hover:bg-yellow-400 text-black font-bold py-4 rounded-xl shadow-lg transition-all transform hover:scale-[1.02]"
+                        >
                             Book Package
                         </button>
 

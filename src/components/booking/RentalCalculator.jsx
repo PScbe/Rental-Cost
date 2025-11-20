@@ -4,6 +4,8 @@ import { database } from '../../firebase';
 import { ref, onValue } from 'firebase/database';
 import Calendar from '../ui/Calendar';
 import ClockPicker from '../ui/ClockPicker';
+import { trackLead, trackInitiateCheckout } from '../../utils/metaPixel';
+
 
 const PRICING = {
     video: {
@@ -296,6 +298,22 @@ const RentalCalculator = () => {
                 return;
             }
         }
+
+        // Track conversion events
+        trackInitiateCheckout({
+            name: 'Studio Rental Booking',
+            category: 'rental',
+            numItems: updatedBookings.length,
+            value: grandTotal,
+            currency: 'INR',
+        });
+
+        trackLead({
+            name: 'Studio Rental Booking',
+            category: 'rental',
+            value: grandTotal,
+            currency: 'INR',
+        });
 
         // Format Date
         const formattedDate = bookingDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
