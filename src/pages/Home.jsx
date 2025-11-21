@@ -10,8 +10,8 @@ const Home = () => {
             <section className="relative h-[80vh] flex items-center justify-center overflow-hidden">
                 {/* Background Gradient/Image Placeholder */}
                 <div className="absolute inset-0 bg-gradient-to-b from-zinc-900 to-black z-0">
-                    {/* You can add a background image here with opacity */}
-                    <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-20"></div>
+                    {/* Custom studio background image */}
+                    <div className="absolute inset-0 bg-[url('/studio-hero-bg.png')] bg-cover bg-center opacity-30"></div>
                 </div>
 
                 <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
@@ -27,9 +27,6 @@ const Home = () => {
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-down" style={{ animationDelay: '0.3s' }}>
                         <Link to="/booking" className="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-yellow-400 text-black font-bold rounded-lg transition-all transform hover:scale-105 shadow-lg shadow-yellow-400/20 flex items-center justify-center gap-2">
                             Book Studio Now <ArrowRight size={20} />
-                        </Link>
-                        <Link to="/services" className="w-full sm:w-auto px-8 py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-lg transition-all border border-zinc-700">
-                            Explore Equipment
                         </Link>
                     </div>
                 </div>
