@@ -76,10 +76,10 @@ const Home = () => {
                         </p>
                         <ul className="space-y-3 mb-8">
                             <li className="flex items-center gap-3 text-gray-300">
-                                <CheckCircle size={18} className="text-primary" /> <span>Sennheiser/Shure Mics</span>
+                                <CheckCircle size={18} className="text-primary" /> <span>Lewitt PURE Tube</span>
                             </li>
                             <li className="flex items-center gap-3 text-gray-300">
-                                <CheckCircle size={18} className="text-primary" /> <span>Logic Pro X / Pro Tools</span>
+                                <CheckCircle size={18} className="text-primary" /> <span>Logic Pro with apollo X6</span>
                             </li>
                             <li className="flex items-center gap-3 text-gray-300">
                                 <CheckCircle size={18} className="text-primary" /> <span>Sound engineer support</span>
