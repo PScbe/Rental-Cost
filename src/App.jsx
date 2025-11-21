@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Booking from './pages/Booking';
+import SampleVideo from './pages/SampleVideo';
 import { initMetaPixel } from './utils/metaPixel';
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/booking" element={<Booking />} />
+          <Route path="/sample-video" element={<SampleVideo />} />
         </Routes>
       </Layout>
     </Router>

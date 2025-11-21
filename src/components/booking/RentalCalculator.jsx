@@ -430,7 +430,25 @@ const RentalCalculator = () => {
                                 >
                                     <Minus size={20} strokeWidth={3} />
                                 </button>
-                                <span className="text-4xl font-bold text-white w-12 text-center">{hours}</span>
+                                <input
+                                    type="number"
+                                    value={hours}
+                                    onChange={(e) => {
+                                        const val = parseInt(e.target.value);
+                                        if (!isNaN(val)) {
+                                            // Allow typing, but validate on blur or submit if needed
+                                            // For now, just update if it's a valid number
+                                            // We'll clamp it in the blur or just let the effect handle minHours
+                                            setHours(val);
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        if (hours < currentConfig.minHours) {
+                                            setHours(currentConfig.minHours);
+                                        }
+                                    }}
+                                    className="text-4xl font-bold text-white w-20 text-center bg-transparent border-none focus:ring-0 focus:outline-none appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                />
                                 <button
                                     onClick={() => setHours(hours + 1)}
                                     className="w-12 h-12 rounded-full bg-primary text-black hover:bg-yellow-400 flex items-center justify-center transition-colors"

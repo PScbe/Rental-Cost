@@ -24,6 +24,7 @@ const Navbar = () => {
                     <div className="hidden md:block">
                         <div className="ml-10 flex items-baseline space-x-8">
                             <Link to="/" className="text-gray-300 hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors">Home</Link>
+                            <Link to="/sample-video" className="text-gray-300 hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors">Sample Video</Link>
                             <Link to="/booking" className="bg-primary text-black hover:bg-yellow-400 px-4 py-2 rounded-md text-sm font-bold transition-colors flex items-center gap-2">
                                 <Calendar size={16} />
                                 Book Now
@@ -48,6 +49,7 @@ const Navbar = () => {
                 <div className="md:hidden bg-zinc-900 border-b border-zinc-800">
                     <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
                         <Link to="/" className="text-gray-300 hover:text-primary block px-3 py-2 rounded-md text-base font-medium" onClick={() => setIsOpen(false)}>Home</Link>
+                        <Link to="/sample-video" className="text-gray-300 hover:text-primary block px-3 py-2 rounded-md text-base font-medium" onClick={() => setIsOpen(false)}>Sample Video</Link>
                         <Link to="/booking" className="text-primary font-bold block px-3 py-2 rounded-md text-base" onClick={() => setIsOpen(false)}>Book Now</Link>
                     </div>
                 </div>
